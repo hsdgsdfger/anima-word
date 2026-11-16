@@ -228,7 +228,7 @@ export function openStudio(node) {
   ensureStylesStudio();
   const st = parseStudio(node);
   const modal = new Modal({
-    title: "Anima 提示词工坊 · 自由选择",
+    title: "anima-word · 提示词工坊 · 自由选择",
     width: "min(1560px, 97vw)", height: "min(94vh, 1020px)",
   });
   modal.body.classList.add("aps-studio-body");
@@ -411,7 +411,7 @@ export function openStudio(node) {
     root.querySelectorAll(".aps-mode button").forEach((b) => {
       b.classList.toggle("on", b.dataset.mode === st.mode);
     });
-    modal.setTitle(`Anima 提示词工坊 · ${MODE_LABEL[st.mode] || st.mode}`);
+    modal.setTitle(`anima-word · 提示词工坊 · ${MODE_LABEL[st.mode] || st.mode}`);
   };
   syncMode();
   root.querySelectorAll(".aps-mode button").forEach((b) => {
