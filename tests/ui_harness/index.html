@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Anima Prompt Studio UI harness</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #101318; color: #e8ebf2; font-family: system-ui, sans-serif; }
+    #testlog { position: fixed; left: 8px; bottom: 8px; z-index: 99; max-width: 48vw; max-height: 34vh; overflow: auto;
+      background: rgba(0,0,0,.82); border: 1px solid #444; padding: 8px; font: 11px/1.5 monospace; white-space: pre-wrap; }
+    #panel-host { height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="panel-host"></div>
+  <pre id="testlog"></pre>
+  <script type="module">
+    import { openStudio } from "./js/studio.js";
+
+    const logEl = document.getElementById("testlog");
+    const lines = [];
+    function log(s) {
+      lines.push(String(s));
+      logEl.textContent = lines.join("\n");
+    }
+    function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+    window.addEventListener("error", (e) => log("WINDOW_ERROR " + e.message));
+    window.addEventListener("unhandledrejection", (e) => log("UNHANDLED " + (e.reason?.message || e.reason)));
+
+    const studio = {
+      version: 1, mode: "manual", order: "slot",
+      items: [
+        { id: "quality:masterpiece", cat: "quality", en: "masterpiece", zh: "杰作", slot: "quality", w: 1.0 },
+        { id: "v6:hair:long hair", cat: "v6:hair", en: "long hair", zh: "长发", slot: "hair", w: 1.2 },
+      ],
+      quality_prefix: "masterpiece, best quality",
+      extra_text: "", negative_preset: "standard", negative_extra: "", lora: [], ui: {},
+    };
+    const widget = (name, value) => ({ name, value, type: "string", options: {} });
+    const node = {
+      type: "AnimaPromptStudio",
+      widgets: [
+        widget("studio_json", JSON.stringify(studio)),
+        widget("mode", "manual"),
+        widget("nsfw_level", "sfw"),
+        widget("seed", -1),
+        widget("artist_weight", 0.9), widget("character_weight", 0.9),
+        widget("clothing_weight", 0.9), widget("pose_weight", 0.9),
+        widget("scene_weight", 0.9), widget("lighting_weight", 0.9),
+        widget("camera_weight", 0.9), widget("detail_weight", 0.9),
+        widget("nsfw_weight", 0.0),
+        widget("extra_negative", ""),
+        widget("cn_summary", true),
+        widget("manual_text", ""),
+      ],
+    };
+    window.__node = node;
+    window.__modal = openStudio(node);
+
+    setTimeout(async () => {
+      try {
+        await sleep(500);
+        const cards = document.querySelectorAll(".aps-card");
+        log("cards=" + cards.length);
+        if (!cards.length) throw new Error("no catalog cards rendered");
+        log("card0=" + cards[0].querySelector(".aps-card-en")?.textContent);
+        cards[0].click();
+
+        const previewBtn = document.querySelector(".aps-preview-btn");
+        previewBtn.click();
+        await sleep(600);
+        log("preview=" + document.querySelector(".aps-preview .pos")?.textContent);
+        log("negative=" + document.querySelector(".aps-preview .neg")?.textContent);
+        log("trayCount=" + document.querySelector(".aps-tray-n")?.textContent);
+
+        const loraTab = document.querySelector('.aps-subtab[data-tab="lora"]');
+        loraTab.click();
+        await sleep(900);
+        const addRows = [...document.querySelectorAll(".aps-lora-local [data-add='1']")];
+        log("loraAdd=" + addRows.length);
+        if (addRows.length < 2) throw new Error("not enough LoRA rows");
+        addRows[0].click();
+        addRows[1].click();
+        await sleep(250);
+        log("loraOrder1=" + [...document.querySelectorAll(".aps-lora-item .nm")].map((x) => x.textContent).join(" | "));
+        const down = document.querySelector('.aps-lora-item [data-act="down"]');
+        down?.click();
+        await sleep(150);
+        log("loraOrder2=" + [...document.querySelectorAll(".aps-lora-item .nm")].map((x) => x.textContent).join(" | "));
+
+        document.querySelector(".aps-apply-btn").click();
+        await sleep(250);
+        const sj = JSON.parse(node.widgets.find((w) => w.name === "studio_json").value);
+        log("savedMode=" + sj.mode + " items=" + (sj.items || []).length + " lora=" + (sj.lora || []).length);
+        log("loraNames=" + (sj.lora || []).map((x) => x.name).join(" | "));
+
+        document.querySelector('.aps-subtab[data-tab="ai"]').click();
+        await sleep(350);
+        log("aiText=" + document.querySelector(".aps-ai")?.textContent.replace(/\s+/g, " ").slice(0, 140));
+
+        document.querySelector('.aps-subtab[data-tab="my"]').click();
+        await sleep(250);
+        log("myText=" + document.querySelector(".aps-my-list")?.textContent.replace(/\s+/g, " ").slice(0, 100));
+
+        // 来源筛选：tools 只应留下 Anima-Tools 的 @test
+        const srcEl = document.querySelector(".aps-src");
+        srcEl.value = "tools";
+        srcEl.dispatchEvent(new Event("change"));
+        await sleep(500);
+        const srcCards = [...document.querySelectorAll(".aps-card")];
+        const srcText = srcCards[0]?.querySelector(".aps-card-en")?.textContent || "";
+        log("srcTools=" + srcCards.length + " / " + srcText);
+        if (srcCards.length !== 1 || srcText !== "@test") throw new Error("source filter failed");
+        srcEl.value = "";
+        srcEl.dispatchEvent(new Event("change"));
+        await sleep(300);
+
+        // 槽位排序下点“下移”应自动切到手选顺序，且第一项真的变化
+        if (document.querySelectorAll(".aps-sel").length < 2) {
+          const moreCards = [...document.querySelectorAll(".aps-card")];
+          const extra = moreCards.find((c) => !c.classList.contains("on"));
+          extra?.click();
+          await sleep(250);
+        }
+        const orderEl = document.querySelector(".aps-order");
+        orderEl.value = "slot";
+        orderEl.dispatchEvent(new Event("change"));
+        await sleep(250);
+        const firstBefore = document.querySelector(".aps-sel")?.dataset.id || "";
+        document.querySelector(".aps-sel [data-act='down']")?.click();
+        await sleep(250);
+        const firstAfter = document.querySelector(".aps-sel")?.dataset.id || "";
+        log("reorder=" + orderEl.value + " " + firstBefore + " -> " + firstAfter);
+        if (orderEl.value !== "custom" || firstBefore === firstAfter) throw new Error("tray reorder failed");
+
+        if (location.search.includes("lora")) {
+          document.querySelector('.aps-subtab[data-tab="lora"]').click();
+          await sleep(300);
+          const loraLeft = document.querySelector(".aps-lora-left")?.getBoundingClientRect();
+          const loraRight = document.querySelector(".aps-lora-right")?.getBoundingClientRect();
+          const overlap = loraLeft && loraRight && !(loraLeft.bottom <= loraRight.top
+            || loraRight.bottom <= loraLeft.top || loraLeft.right <= loraRight.left
+            || loraRight.right <= loraLeft.left);
+          log("loraLayout vp=" + innerWidth + "x" + innerHeight
+            + " left=" + (loraLeft ? Math.round(loraLeft.width) + "x" + Math.round(loraLeft.height) : "-")
+            + " right=" + (loraRight ? Math.round(loraRight.width) + "x" + Math.round(loraRight.height) : "-")
+            + " overlap=" + Boolean(overlap));
+          if (overlap) throw new Error("LoRA panels overlap");
+          log("finalTab=lora");
+        }
+        log("DONE");
+      } catch (e) {
+        log("TEST_ERROR " + (e?.stack || e));
+        log("DONE_WITH_ERROR");
+      }
+    }, 900);
+  </script>
+</body>
+</html>
