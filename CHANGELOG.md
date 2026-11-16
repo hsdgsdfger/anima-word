@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.7 — 2026-11-16
+
+- 修复手动模式 `extra_body` 在 `repair()` 之后追加，导致重复、互斥、档位修复被绕过；
+  现在与手选正文合并后统一修复，报告也按最终标签计算。
+- 修复 `AnimaPromptStudioSelector` 的 `max_level` 只约束随机、不约束手选；
+  手选条目同样按档位过滤，全部被过滤时不会再意外抽随机条目。
+- 修复随机模式静默丢弃 `extra_text` / `manual_text` / `extra_body`；
+  固定描述和手写补充现在会进入最终正文并经过统一修复。
+- 修复 `hybrid + seed=-1` 的 `IS_CHANGED` 指纹稳定，导致持续命中旧缓存。
+- 修复 Tools 服装目录默认 `level=0`，按 `R.tag_level()` 逐 tag 校准实际档位；
+  SFW 服装目录不再混入规则引擎判为高档的条目。
+- 修复负面词推导不解析 `(tag:weight)`，加权正向标签现在同样触发冲突词和回声过滤。
+- 修复 `anima_v4_outfit_style.summary()` 引用未定义 `COLOR_TARGETS` 的 `NameError`。
+- 修复目录允许只有中文、没有英文 tag 的幽灵条目；统一在 `_item()` 剔除空 `en`。
+- 新增 `tests/test_bugfixes.py`，覆盖以上 8 项；现有 smoke / 元数据 / 权重 / 语法回归全部通过。
+
 ## 1.0.6 — 2026-11-16
 
 - 提示词工坊顶部改为固定三页签：`权重库 / 提示词 / 预设`，默认进入 `权重库`。

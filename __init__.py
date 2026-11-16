@@ -15,7 +15,7 @@
 """
 from __future__ import annotations
 
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 
 from .nodes_v6 import (
     AnimaV4PromptAssemble as _V6Assemble,

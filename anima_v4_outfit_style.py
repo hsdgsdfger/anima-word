@@ -518,6 +518,9 @@ COLOR_ZH = {
 #: 视觉块，硬塞同一个颜色反而更不协调。现在想给袜子单独配色就填 sock_color。
 SOCK_COLOR_TARGETS = ("socks",)
 BODY_COLOR_TARGETS = ("bottom", "top", "outfit")
+# summary() 对外暴露的「颜色可落点」汇总；直接复用实际 colorize() 的两个集合，
+# 避免出现一个未定义的 COLOR_TARGETS 名称。
+COLOR_TARGETS = tuple(dict.fromkeys(SOCK_COLOR_TARGETS + BODY_COLOR_TARGETS))
 
 _MATRIX_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "presets", "anima_v4_color_matrix.json")

@@ -219,12 +219,13 @@ def compose_manual(items, level="sfw", order="slot", quality_prefix="",
     prefix = _join_quality(quality_prefix)
     raw = prefix + raw
     raw.extend(_split_tags(extra_text))
+    # extra_body 必须和手选正文一起过 repair：否则重复、互斥和档位都绕过去了。
+    # 混合模式原本也是在这一步合并，手动模式保持一致。
+    raw.extend(_split_tags(extra_body))
 
     tags, fixes = R.repair(raw, lv)
     # repair 之后按原始权重重新套括号；质量前缀不套
     final = _apply_weights(tags, weight_by_tag, weight_style)
-    if extra_body:
-        final.extend(_split_tags(extra_body))
 
     state, report = R.check_text(final, lv)
     text = ", ".join(final)
@@ -354,6 +355,48 @@ def compose_hybrid(items, draw_kwargs, level="sfw", order="slot",
     }
 
 
+def _merge_extra_into_random(drawn, extra_text="", extra_body="", level="sfw"):
+    """随机模式的补充词合并。
+
+    固定描述 / 节点 manual_text / 节点 extra_body 在 random 分支里也必须进入
+    repair，否则会绕过重复、互斥和档位修复，或直接丢失。这里只改成品标签，
+    保留 V6 原始 report 里的字段明细。
+    """
+    extra = _split_tags(extra_text) + _split_tags(extra_body)
+    if not extra:
+        return drawn
+
+    lv_key = R.resolve_level(level)
+    lv = R.LEVEL_NUM[lv_key]
+    tags, fixes = R.repair(list(drawn.get("tags") or []) + extra, lv)
+    state, report = R.check_text(tags, lv)
+
+    old_report = drawn.get("report") or {}
+    if old_report.get("drawn"):
+        report["drawn"] = old_report["drawn"]
+    if old_report.get("dropped"):
+        report["dropped"] = old_report["dropped"]
+    notes = list(drawn.get("notes") or [])
+    if fixes:
+        notes.append("补充词自动修复 %d 项：%s" % (len(fixes), "；".join(fixes[:6])))
+    report["notes"] = notes
+    report["repaired"] = fixes
+
+    out = dict(drawn)
+    out.update({
+        "text": ", ".join(tags),
+        "tags": tags,
+        "state": state,
+        "level": lv_key,
+        "level_num": lv,
+        "level_label": R.level_label(lv_key),
+        "report": report,
+        "notes": notes,
+        "fixes": fixes,
+    })
+    return out
+
+
 def draw_from_kwargs(kwargs):
     """把 V6 节点控件参数翻译成 R.draw，返回原始结果。"""
     weights_json = kwargs.get("weights_json") or ""
@@ -423,7 +466,12 @@ def compose(studio, kwargs):
     extra_body = str(kwargs.get("extra_body") or "")
 
     if mode == "random":
-        drawn = draw_from_kwargs(kwargs)
+        draw_kw = dict(kwargs)
+        # 补充词统一在 draw 之后合并，避免 R.draw 内部再追加一次。
+        draw_kw["extra_body"] = ""
+        drawn = draw_from_kwargs(draw_kw)
+        drawn = _merge_extra_into_random(
+            drawn, extra_text=extra_text, extra_body=extra_body, level=level)
         res = {
             "text": drawn["text"],
             "tags": drawn["tags"],
@@ -434,7 +482,7 @@ def compose(studio, kwargs):
             "cn_summary": drawn["cn_summary"],
             "report_text": R.format_report(drawn),
             "report": drawn["report"],
-            "fixes": [],
+            "fixes": drawn.get("fixes") or [],
             "counts": {"drawn": len(drawn["tags"])},
         }
         res["negative"] = build_negative(

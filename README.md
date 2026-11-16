@@ -6,11 +6,17 @@
 [Comfyui-Anima-Tools](https://github.com/nregret/Comfyui-Anima-Tools)
 的素材库 / 多提示词框 / 多 LoRA 加载器合成一套面板。
 
-- 版本：`1.0.6`（V6 引擎内部版本 `7.0.0`）
+- 版本：`1.0.7`（V6 引擎内部版本 `7.0.0`）
 - 许可：GPL-3.0（因为内嵌 V6；详见 `LICENSE`、`THIRD_PARTY_NOTICES.md`）
 - 依赖：无第三方 Python 依赖；只要 ComfyUI 自带的 Python 环境
 - 真机验证：ComfyUI `0.45.3` / Python `3.13.12` / 前端 `1.58.5`
 
+> **1.0.7 更新（2026-11）**：修复独立检测报告确认的 8 项问题：`extra_body`
+> 在手动模式绕过修复、选择器手选档位绕过、随机模式丢失固定描述、混合模式
+> `seed=-1` 缓存不失效、Tools 服装档位与规则引擎不一致、负面词无法识别
+> `(tag:weight)`、`outfit_style.summary()` 的 `NameError`、背景目录空英文条目。
+> 新增 `tests/test_bugfixes.py` 覆盖全部 8 项。
+>
 > **1.0.6 更新（2026-11）**：统一提示词工坊 UI：顶部 `权重库 / 提示词 / 预设`
 > 三页签，默认打开 `权重库`；提示词页分 `模板 / 通用`，模板只跑 V6 原版并隐藏
 > 右侧预览/手选托盘，通用才显示目录、托盘和预览。权重与随机只控制模板。

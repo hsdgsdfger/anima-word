@@ -6,7 +6,7 @@
   1. V6 词库（15 段 / 57 字段 / 1134 选项，带逐项档位）
   2. V6 角色（2432，含本地缩略图）、场景搭配（524）、服装库（135）
   3. Anima-Tools 数据（画师 42197 / 角色 8000 / 服装 430 / 姿势 297 /
-     背景 1087 / 社区库 6759）
+     背景 1057 / 社区库 6759）
   4. 用户自己的「我的 Tag」（ComfyUI/user/anima_prompt_studio/my_tags.json）
 
 设计约束：
@@ -54,7 +54,7 @@ CATEGORY_GROUPS = [
         ("v6outfit", "👗 服装库（V6 · 135）"),
         ("clothing", "👗 服装（Tools · 430）"),
         ("pose", "🧘 姿势（Tools · 297）"),
-        ("background", "🏞 背景（Tools · 1087）"),
+        ("background", "🏞 背景（Tools · 1057）"),
     ]),
     ("scenes", "场景与构图", [
         ("scene_sfw", "🏙 场景搭配"),
@@ -146,7 +146,8 @@ def _clean(text):
 def _item(cat, en, zh="", slot="other", level=0, src="", thumb="",
           tags=None, extra=None, item_id=None):
     en = str(en or "").strip()
-    if not en and not zh:
+    # 目录必须能产出真正的英文 tag；只有中文名的条目会变成点了也进不了正文的幽灵。
+    if not en:
         return None
     try:
         level = max(0, min(4, int(level or 0)))
@@ -276,6 +277,10 @@ def _v6_outfit_items():
 
 
 def _tools_items():
+    try:
+        from . import anima_v4_rules as R
+    except ImportError:  # 独立测试环境
+        import anima_v4_rules as R
     out = []
 
     artists = _load_json(os.path.join(DATA_DIR, "artists.json"), [])
@@ -314,8 +319,13 @@ def _tools_items():
     clothing = _load_json(os.path.join(DATA_DIR, "clothing.json"), [])
     for c in clothing:
         tags = str(c.get("tags") or "").strip().rstrip(",")
+        # Tools 服装没有逐条档位；按规则引擎取实际档位，避免 SFW 目录里
+        # 混入规则引擎判为高档的衣服（430 条里曾出现 301 条不一致）。
+        # 一条服装可能由多个 tag 组成，必须逐 tag 取最大值。
+        tag_levels = [R.tag_level(t.strip()) for t in tags.split(",") if t.strip()]
+        level = max([int(c.get("level") or 0)] + tag_levels) if tags else 0
         item = _item("clothing", tags, c.get("name_zh") or c.get("name"), "clothing",
-                     0, "tools", thumb=c.get("preview", ""),
+                     level, "tools", thumb=c.get("preview", ""),
                      extra={"name": c.get("name", ""), "categories": c.get("categories") or [],
                             "traits": c.get("traits") or [], "note": c.get("note", "")},
                      item_id=f"clothing:{c.get('id')}")

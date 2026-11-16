@@ -78,6 +78,7 @@ CONFLICT_PAIRS = [
 TEXTURE_NEG = ["blurry", "out of focus", "depth of field", "bokeh"]
 
 _PUNCT = re.compile(r"[\s_]+")
+_WEIGHT_WRAP = re.compile(r"^\(+([^():]+?)(?::\s*[0-9.]+\s*)?\)+$")
 
 
 def _split(text):
@@ -87,6 +88,18 @@ def _split(text):
 
 def _norm(t):
     return _PUNCT.sub(" ", str(t or "").strip().lower())
+
+
+def _base_tag(t):
+    """把 `(night:1.2)` / `((night))` 还原成 `night`，供冲突、回声和去重匹配。
+
+    输出正文仍保留原始权重语法；这里只生成匹配用的基础标签。
+    """
+    s = _norm(t)
+    m = _WEIGHT_WRAP.match(s)
+    if m:
+        s = _norm(m.group(1))
+    return s
 
 
 def _has_any(tags, needles):
@@ -108,7 +121,7 @@ def build_negative(positive="", level=0, preset="standard", extra=""):
               "hardcore": 3, "extreme": 4}.get(level.strip().lower(), 0)
     lv = int(lv or 0)
 
-    pos_tags = set(_split(positive))
+    pos_tags = {_base_tag(t) for t in _split(positive)}
     tags = [t for t in BASE]
     if str(preset or "").strip().lower() == "full":
         tags.extend(FULL_EXTRA)

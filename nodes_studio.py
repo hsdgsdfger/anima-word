@@ -136,7 +136,7 @@ class AnimaPromptStudio(V6.AnimaV4RandomPrompt):
             seed_i = int(seed)
         except (TypeError, ValueError):
             seed_i = -1
-        if seed_i < 0 and mode == "random":
+        if seed_i < 0 and mode in ("random", "hybrid"):
             return f"rand:{time.time_ns()}:{next(_CHANGED_TICK)}"
         return (f"mode:{mode}|seed:{seed_i}|studio:{digest}"
                 f"|level:{kwargs.get('nsfw_level')}|manual:{kwargs.get('manual_text')}"
@@ -331,8 +331,15 @@ class AnimaPromptStudioSelector:
                     continue
                 ids.append(row.get("id") or row.get("en"))
         rows = catalog.get_by_ids(ids) if ids else []
+        had_picked = bool(rows)
 
-        if not rows and int(random_count or 0) > 0:
+        # 手选和随机必须走同一个档位闸门；否则先选高档、再切 SFW 会直接漏出。
+        if max_level != "不限":
+            lv_max = manual.level_num(max_level)
+            rows = [r for r in rows
+                    if int(r.get("level") or 0) <= lv_max]
+
+        if not rows and not had_picked and int(random_count or 0) > 0:
             lv_max = None
             if max_level != "不限":
                 lv_max = manual.level_num(max_level)
