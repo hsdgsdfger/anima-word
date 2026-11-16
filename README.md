@@ -399,8 +399,17 @@ E:\Game\ComfyUI-Installs\Anima模型\ComfyUI\.venv\Scripts\python.exe `
   D:\Apps\99_Data\workbubby_Data\ComfyUI生图查看器\anima-word\tests\smoke_backend.py
 ```
 
-覆盖：包加载、11 个节点、62,585 条目录、manual/hybrid/random 三种 compose、
+覆盖：包加载、11 个节点、62,584 条目录、manual/hybrid/random 三种 compose、
 手选报告不含 F1/F2、负面词、AI 未启用抛 `AIUnavailable`。
+
+针对性 bug 回归：
+
+```powershell
+python tests/test_bugfixes.py
+```
+
+覆盖 `extra_body` 修复链、选择器手选档位、随机补充词、hybrid `seed=-1`
+缓存失效、服装档位、加权负面词、`outfit_style.summary()` 和空英文条目。
 
 ### 10.2 前端离线 harness
 
