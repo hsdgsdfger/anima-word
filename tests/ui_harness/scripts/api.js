@@ -63,6 +63,14 @@ export const api = {
       rows = rows.slice((page - 1) * limit, page * limit);
       return json({ total, page, limit, items: rows });
     }
+    if (path.endsWith("/catalog/random")) {
+      const cat = u.searchParams.get("cat") || "";
+      const src = u.searchParams.get("src") || "";
+      const q = (u.searchParams.get("q") || "").toLowerCase();
+      const rows = ITEMS.filter((it) => (!cat || it.cat === cat) && (!src || it.src === src) && (!q || it.en.includes(q) || it.zh.includes(q)));
+      const item = rows.length ? rows[Math.floor(Math.random() * rows.length)] : null;
+      return json({ ok: true, item });
+    }
     if (path.endsWith("/catalog/by-ids")) {
       const body = JSON.parse(opts.body || "{}");
       const ids = body.ids || [];

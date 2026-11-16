@@ -44,6 +44,28 @@
             "extra": {"post_count": 16465}}]}
 ```
 
+### `GET /catalog/random`
+
+从**整个分类**随机抽一条，不受首屏分页 `limit` 限制。参数与
+`/catalog/items` 相同，但没有 `page` / `limit`：
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `cat` | string | 分类 key；空=全部 |
+| `q` | string | 搜索过滤 |
+| `level_max` | int/string | 最大档位；`none`/空=不限 |
+| `src` | string | `v6` / `tools` / `builtin` / `my` |
+
+返回：
+
+```json
+{"ok": true,
+ "item": {"id": "v6:place:garden", "cat": "v6:scene", "en": "garden",
+          "zh": "花园", "slot": "scene", "level": 0, "src": "v6"}}
+```
+
+当前分类没有可抽项时返回 `{"ok": true, "item": null}`。
+
 ### `POST /catalog/by-ids`
 
 ```json

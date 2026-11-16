@@ -534,11 +534,14 @@ def items(cat="", q="", page=1, limit=60, level_max=None, src=""):
     return {"total": total, "page": page, "limit": limit, "items": out}
 
 
-def sample(cat="", n=1, seed=None, level_max=None, src=""):
+def sample(cat="", n=1, seed=None, level_max=None, src="", q=""):
     """从整个分类里随机抽样（不是只抽第一页）。
 
     选择器节点的 `random_count` 需要的是全分类随机；先分页再 sample 会让
     42k 画师里只有前 500 个有概率被抽到，长期看等于固定池子。
+
+    `q` 与 `/catalog/items` 的搜索过滤同规则；面板「随机场景」用它
+    在当前搜索条件内抽一条。
     """
     data = ensure()
     cat = str(cat or "").strip()
@@ -548,6 +551,9 @@ def sample(cat="", n=1, seed=None, level_max=None, src=""):
         rows = [it for it in rows if it["cat"] == cat]
     if src:
         rows = [it for it in rows if it["src"] == src]
+    q = _norm_query(q)
+    if q:
+        rows = [it for it in rows if q in it["_q"]]
     if level_max is not None:
         try:
             lm = int(level_max)

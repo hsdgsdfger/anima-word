@@ -30,6 +30,10 @@ const SLOT_LABEL = {
   lighting: "光影", other: "其他",
 };
 const MODE_LABEL = { manual: "手选", hybrid: "混合", random: "随机" };
+const SCENE_CATS = new Set([
+  "v6:scene", "background", "scene_sfw", "scene_nsfw",
+  "scene_pose", "scene_art", "scene_weapon", "scene_near", "v6:canon",
+]);
 
 /* ── 样式 ────────────────────────────────────────────────────────── */
 let _studioStyled = false;
@@ -257,6 +261,7 @@ export function openStudio(node) {
               <option value="builtin">内置质量词</option>
               <option value="my">我的 Tag</option>
             </select>
+            <button class="aps-btn small ghost aps-random" title="从当前分类随机抽取一条">🎲 随机一条</button>
           </div>
           <div class="aps-grid"></div>
           <div class="aps-grid-more"><button class="aps-btn ghost">加载更多</button></div>
@@ -391,6 +396,16 @@ export function openStudio(node) {
     loraEditor: null,
   };
 
+  const randomBtn = root.querySelector(".aps-random");
+  function syncRandomBtn() {
+    const scene = SCENE_CATS.has(ui.cat);
+    randomBtn.textContent = scene ? "🎲 随机场景" : "🎲 随机一条";
+    randomBtn.title = scene
+      ? "从当前场景分类随机抽取一条（不受首屏 60 条限制）"
+      : "从当前分类随机抽取一条（不受首屏 60 条限制）";
+  }
+  randomBtn.onclick = () => randomPick();
+
   /* 模式 / 档位 / 排序回填 */
   const syncMode = () => {
     root.querySelectorAll(".aps-mode button").forEach((b) => {
@@ -485,6 +500,7 @@ export function openStudio(node) {
     ui.loading = true;
     if (reset) { ui.page = 1; ui.list = []; }
     catTitle.textContent = catLabel(ui.cat);
+    syncRandomBtn();
     try {
       if (ui.cat === "__fav__") {
         const res = await fetchJSON("/studio/favorites");
@@ -525,6 +541,38 @@ export function openStudio(node) {
     } finally {
       ui.loading = false;
       gridMore.disabled = false;
+    }
+  }
+
+  async function randomPick() {
+    if (ui.loading || randomBtn.disabled) return;
+    randomBtn.disabled = true;
+    const prev = randomBtn.textContent;
+    randomBtn.textContent = "抽取中…";
+    try {
+      let item = null;
+      if (ui.cat === "__fav__" || ui.cat === "__recent__") {
+        if (!ui.list.length) throw new Error("当前列表为空");
+        item = ui.list[Math.floor(Math.random() * ui.list.length)];
+      } else {
+        const params = new URLSearchParams({
+          cat: ui.cat === "__all__" ? "" : ui.cat,
+          q: ui.q, src: srcEl.value || "",
+        });
+        if (onlySfw.checked) params.set("level_max", "0");
+        const res = await fetchJSON(`/catalog/random?${params}`);
+        item = res.item;
+      }
+      if (!item) throw new Error("当前分类没有可抽取的标签");
+      if (!ui.list.some((x) => x.id === item.id)) ui.list.unshift(item);
+      addItem(item);
+      toast(`随机选中：${item.zh || item.en}`, "ok");
+    } catch (e) {
+      toast(`随机失败：${e.message}`, "err", 3500);
+    } finally {
+      randomBtn.disabled = false;
+      randomBtn.textContent = prev;
+      syncRandomBtn();
     }
   }
 

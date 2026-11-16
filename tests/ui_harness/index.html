@@ -114,6 +114,21 @@
         srcEl.dispatchEvent(new Event("change"));
         await sleep(300);
 
+        // 场景分类随机：按钮文案应变成“随机场景”，点一下应真的进托盘
+        document.querySelector('.aps-side-item[data-cat="v6:scene"]')?.click();
+        await sleep(450);
+        const randomBtn = document.querySelector(".aps-random");
+        log("randomLabel=" + randomBtn?.textContent);
+        if (!randomBtn || !randomBtn.textContent.includes("随机场景")) throw new Error("scene random label failed");
+        randomBtn.click();
+        await sleep(350);
+        const sceneRow = [...document.querySelectorAll(".aps-sel")].find(
+          (el) => el.dataset.id === "v6:scene:classroom");
+        log("sceneRandom=" + (sceneRow ? sceneRow.dataset.id : "MISSING"));
+        if (!sceneRow) throw new Error("scene random did not reach tray");
+        document.querySelector('.aps-side-item[data-cat="__all__"]')?.click();
+        await sleep(400);
+
         // 槽位排序下点“下移”应自动切到手选顺序，且第一项真的变化
         if (document.querySelectorAll(".aps-sel").length < 2) {
           const moreCards = [...document.querySelectorAll(".aps-card")];

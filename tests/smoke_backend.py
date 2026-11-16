@@ -89,6 +89,13 @@ def main():
     print("builtin:", builtin["total"], builtin["items"][:1])
     assert builtin["total"] == 8, builtin["total"]
 
+    print("== catalog scene random ==")
+    scene_pick = catalog.sample("v6:scene", 5, seed=7)
+    print("scene sample:", [it["en"] for it in scene_pick])
+    assert len(scene_pick) == 5
+    assert all((it.get("extra") or {}).get("section") == "scene"
+               for it in scene_pick)
+
     print("== selector random ==")
     selector = mod.NODE_CLASS_MAPPINGS["AnimaPromptStudioSelector"]()
     picked = selector.select("artist", "[]", 42, 3)

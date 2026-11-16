@@ -79,6 +79,22 @@ def register():
             return _err(f"目录读取失败：{exc}", 500)
         return web.json_response(res)
 
+    @get("/catalog/random")
+    async def _catalog_random(request):
+        """从整个分类随机抽一条（不受首屏 60 条限制）。"""
+        q = request.query
+        level_max = q.get("level_max")
+        if level_max in ("", "none", "不限", None):
+            level_max = None
+        try:
+            rows = catalog.sample(
+                cat=q.get("cat", ""), n=1, level_max=level_max,
+                src=q.get("src", ""), q=q.get("q", ""))
+        except Exception as exc:
+            return _err(f"目录随机失败：{exc}", 500)
+        return web.json_response({"ok": True,
+                                  "item": rows[0] if rows else None})
+
     @post("/catalog/by-ids")
     async def _catalog_by_ids(request):
         body = await _body(request)

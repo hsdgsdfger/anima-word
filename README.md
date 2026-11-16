@@ -6,11 +6,16 @@
 [Comfyui-Anima-Tools](https://github.com/nregret/Comfyui-Anima-Tools)
 的素材库 / 多提示词框 / 多 LoRA 加载器合成一套面板。
 
-- 版本：`1.0.1`（V6 引擎内部版本 `7.0.0`）
+- 版本：`1.0.2`（V6 引擎内部版本 `7.0.0`）
 - 许可：GPL-3.0（因为内嵌 V6；详见 `LICENSE`、`THIRD_PARTY_NOTICES.md`）
 - 依赖：无第三方 Python 依赖；只要 ComfyUI 自带的 Python 环境
 - 真机验证：ComfyUI `0.45.3` / Python `3.13.12` / 前端 `1.58.5`
 
+> **1.0.2 更新（2026-11）**：目录页新增「🎲 随机一条 / 随机场景」按钮。当前分类
+> 是场景相关分类时自动变成「🎲 随机场景」，从整个分类随机抽取，不受首屏 60 条
+> 限制；支持搜索、来源、档位过滤，抽到的场景会直接进手选托盘。后端新增
+> `GET /anima-prompt-studio/catalog/random`。
+>
 > **1.0.1 更新（2026-11）**：修复混合模式手选权重丢失、手选角色被随机角色/官方
 > 外貌覆盖、选择器随机模式崩溃、目录来源筛选失效、按槽位排序时托盘移动无效、
 > LoRA 同名文件替换后缓存不刷新；关闭工坊面板时会立即保存，不再依赖 300ms
@@ -399,7 +404,7 @@ cd E:\Game\ComfyUI-Installs\Anima模型\ComfyUI
   `catalog_total: 62585`、`catalog_cats: 31`、`loras: 21`；
 - `/catalog/meta`、`/catalog/items?cat=artist&limit=3`、`/loras`、`/ai/status`、
   `/health`、`/studio/favorites`、`POST /compose` 全部 200；
-- `/extensions/Comfyui-Anima-Prompt-Studio/studio.js` 200，50,523 bytes；
+- `/extensions/Comfyui-Anima-Prompt-Studio/studio.js` 200，52,441 bytes；
 - `/anima-prompt-studio/thumb/hatsune_miku` 200，`image/webp`，10,138 bytes。
 - 真实 ComfyUI 页面：节点库搜索 `AnimaPromptStudio` 能列出 11 个节点；插入主
   节点后点“🎨 打开提示词工坊”，面板正常渲染；点第一张卡片（1girl, solo）→
