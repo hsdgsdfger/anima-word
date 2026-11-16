@@ -112,7 +112,7 @@ function loadWeights(node) {
       // v3.18.5：特写套用前的「原始权重基线」。放在 weights_json 里而不是内存变量，
       // 这样刷新 / 节点重开 / 换工作流之后仍能把被清零的字段还原回去。
       _nearBase: d._nearBase && typeof d._nearBase === "object" ? d._nearBase : undefined,
-      // v3.23.0：等级自动同步的两个附加键（引擎忽略下划线键）
+      // v3.25.0：等级自动同步的两个附加键（引擎忽略下划线键）
       _autoLevel: typeof d._autoLevel === "boolean" ? d._autoLevel : undefined,
       _levelBase: d._levelBase && typeof d._levelBase === "object" ? d._levelBase : undefined,
       // v3.25.0：界面记忆（页签 / 滚动 / 展开 / 筛选）。同样挂在 weights_json 里，
@@ -146,7 +146,7 @@ function saveWeights(node, w) {
   }
   if (Object.keys(o).length) out.options = o;
   if (w._nearBase) out._nearBase = w._nearBase;
-  // v3.23.0：等级自动同步的开关与撤销基线（引擎忽略下划线键，只占存储）
+  // v3.25.0：等级自动同步的开关与撤销基线（引擎忽略下划线键，只占存储）
   if (typeof w._autoLevel === "boolean") out._autoLevel = w._autoLevel;
   if (w._levelBase) out._levelBase = w._levelBase;
   // v3.25.0：界面记忆
@@ -254,6 +254,10 @@ const CSS = `
 .av3-panel{width:min(1520px,96vw);height:min(980px,94vh);display:flex;flex-direction:column;
   background:var(--comfy-menu-bg,#1e1e1e);color:var(--fg-color,#ddd);
   border:1px solid var(--border-color,#444);border-radius:10px;overflow:hidden;font-size:13px;}
+.av3-mask.av3-embedded{position:absolute;inset:0;z-index:1;background:transparent;display:flex;
+  align-items:stretch;justify-content:stretch;overflow:hidden;}
+.av3-mask.av3-embedded .av3-panel{width:100%;height:100%;max-height:100%;border-radius:0;
+  border:0;box-shadow:none;}
 .av3-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border-color,#444);flex-wrap:wrap;}
 .av3-head h3{margin:0;font-size:14px;font-weight:600;color:#e8c98a;}
 .av3-lv{display:flex;gap:0;border:1px solid var(--border-color,#444);border-radius:7px;overflow:hidden;}
@@ -279,7 +283,7 @@ const CSS = `
    否则折叠时会把「一键套用」一起藏掉，必须展开才能套用。 */
 .av3-sceneact{display:flex;gap:6px;flex-wrap:wrap;padding:0 10px 9px;}
 .av3-sceneout{margin:0 10px 9px;max-height:220px;}
-/* ── v3.43.0：场景卡收藏星标 / 紧凑模式 / 可折叠档位标题 ──
+/* ── v3.45.0：场景卡收藏星标 / 紧凑模式 / 可折叠档位标题 ──
    星标用独立类名 .av3-sfav（不叫 .fav）—— .av3-card .fav 是**绝对定位**的
    角标，场景卡在 flex 标题行里，除非 relative 否则会飘到面板左上角。 */
 .av3-sec>.hd .av3-sfav{font-size:14px;line-height:1;color:#7d7d7d;cursor:pointer;
@@ -570,14 +574,24 @@ function openPanel(node) {
   });
 }
 
+/* 1.0.5：工坊的 V6 权重标签需要一个入口打开完整 V6 面板。
+   放在全局，避免 studio.js 直接 import 这个 351KB 模块导致扩展被重复注册。 */
+try {
+  window.__animaWordOpenV6Panel = (node) => openPanel(node);
+  window.__animaWordMountV6Panel = (node, host) => {
+    injectCSS();
+    return ensureData().then(() => buildPanel(node, host));
+  };
+} catch (_e) { /* 非浏览器环境 */ }
+
 function lsGet(node, name, dflt = "") {
   return wget(node, name, dflt);
 }
 
-function buildPanel(node) {
+function buildPanel(node, host = null) {
   const { pools, contract } = CACHE;
   const mask = document.createElement("div");
-  mask.className = "av3-mask";
+  mask.className = host ? "av3-mask av3-embedded" : "av3-mask";
 
   const panel = document.createElement("div");
   panel.className = "av3-panel";
@@ -672,7 +686,7 @@ function buildPanel(node) {
        例「艺术构图 + 花园俯拍」只看花园那 20 条。空串 = 不筛。 */
     sceneBg: (typeof _memo.sceneBg === "string" ? _memo.sceneBg : ""),
     scenesLoading: false,
-    /* ── v3.43.0：场景页检索 / 收藏 / 浏览状态 ──────────────────────
+    /* ── v3.45.0：场景页检索 / 收藏 / 浏览状态 ──────────────────────
        全部属于"界面"，随 weights._ui 一起记（见 rememberUi）；
        SceneFav 是**数据**（Set<场景 id>），懒加载，null = 还没拉过。 */
     sceneFav: null,
@@ -856,7 +870,7 @@ function buildPanel(node) {
       outfitQuery: ui.outfitQuery,
       outfitOpen: { ...ui.outfitOpen },
       sceneBg: ui.sceneBg,
-      // v3.43.0：检索 / 收藏 / 浏览偏好一起记 —— 下次打开还在原处
+      // v3.45.0：检索 / 收藏 / 浏览偏好一起记 —— 下次打开还在原处
       sceneQuery: ui.sceneQuery,
       sceneAspect: ui.sceneAspect,
       sceneTheme: ui.sceneTheme,
@@ -3379,7 +3393,7 @@ function buildPanel(node) {
 
   /* ── 场景搭配（v3.9.0）───────────────────────────────────────────
      与角色库同一条纪律：**点到这一页才拉**数据；选中状态落在**权重表**里
-     （`fields.n_canon = 3.0` + `options.n_canon` 只有本预设 = 3.0），
+     （`fields.n_canon = 5.0` + `options.n_canon` 只有本预设 = 5.0），
      所以不新增任何节点控件、不需要工作流迁移脚本，且随工作流保存。
 
      ⚠️ 为什么不新增控件：节点侧**没有"字段取值"控件** —— 字段值只能来自
@@ -3410,11 +3424,11 @@ function buildPanel(node) {
       });
   }
 
-  /** 当前套用的场景 id（从权重表反推：字段必现 + 该选项 3.0）。 */
+  /** 当前套用的场景 id（从权重表反推：字段必现 + 该选项 5.0）。 */
   function appliedSceneId() {
-    if (Number(ui.weights.fields.n_canon ?? 1) < 3) return "";
+    if (Number(ui.weights.fields.n_canon ?? 1) < 5) return "";
     for (const [en, v] of Object.entries(ui.weights.options.n_canon || {})) {
-      if (en.startsWith("sc_") && Number(v) >= 3) return en;
+      if (en.startsWith("sc_") && Number(v) >= 5) return en;
     }
     return "";
   }
@@ -3781,7 +3795,7 @@ function buildPanel(node) {
     const want = (sc && sc.count_lock) || "1girl, solo";
     const f = findField("count");
     const bag = {};
-    for (const o of (f && f.opts) || []) bag[o.en] = (o.en === want ? 3.0 : 0.0);
+    for (const o of (f && f.opts) || []) bag[o.en] = (o.en === want ? 5.0 : 0.0);
     return bag;
   }
 
@@ -3824,7 +3838,7 @@ function buildPanel(node) {
     return true;
   }
 
-  /* ── v3.23.0：套用场景时自动同步 NSFW 等级 ──────────────────────
+  /* ── v3.25.0：套用场景时自动同步 NSFW 等级 ──────────────────────
      用户口径（2026-10-23）：
        · **只升不降** —— 场景档位高于当前等级才升；已经比场景高就不动
          （否则"选个全年龄场景"会把你手动调到 L4 的设置悄悄拉回 0）；
@@ -3868,10 +3882,10 @@ function buildPanel(node) {
     //    这正是"腿部服装随机不生效"的根因：面部/成人向条目把 socks/shoes 清零，
     //    基线只存内存，刷新后丢失，切回腿部时袜鞋恒为 0。
     if (ui.weights._nearBase) restoreNear();
-    ui.weights.fields.n_canon = 3.0;
+    ui.weights.fields.n_canon = 5.0;
     const bag = {};
     for (const en of all) bag[en] = 0;
-    bag[sc.id] = 3.0;
+    bag[sc.id] = 5.0;
     ui.weights.options.n_canon = bag;
     // ⚠️ 段权重不能是 0 —— 否则 persist() 会把 canon 写进 disabled_sections，
     //    整个预设段被关掉，"套用了却没生效"。
@@ -3936,7 +3950,7 @@ function buildPanel(node) {
         roleUnlocked = true;
       }
     }
-    // v3.23.0：等级同步（只升不降，见 syncLevelFor 的说明）
+    // v3.25.0：等级同步（只升不降，见 syncLevelFor 的说明）
     const lvNote = syncLevelFor(sc);
     persist();
     if (ui.tab === "weights") renderTree();
@@ -3979,7 +3993,7 @@ function buildPanel(node) {
     ui.weights.fields.n_canon = 1.0;
     ui.weights.options.n_canon = {};
     const restored = restoreNear();
-    // v3.23.0：把自动升过的等级还回去 —— 但只在这一档还是**它自己升上去**的时候，
+    // v3.25.0：把自动升过的等级还回去 —— 但只在这一档还是**它自己升上去**的时候，
     // 用户手动改过（比如又调到 extreme）就不动，免得撤销动作把用户的选择吃掉。
     let lvBack = "";
     const lb = ui.weights._levelBase;
@@ -4001,7 +4015,7 @@ function buildPanel(node) {
     refreshApplied();          // v6.1.0：取消后右栏那行跟着消失
   }
 
-  /** v3.23.0：「套用时自动同步等级」开关 —— 场景页与特写页共用同一条。 */
+  /** v3.25.0：「套用时自动同步等级」开关 —— 场景页与特写页共用同一条。 */
   function autoLevelBar() {
     const bar = document.createElement("div");
     bar.className = "av3-levelbar";      // 独立 class：不抢「🎭 角色来源」那条 charbar 的位置
@@ -4038,7 +4052,7 @@ function buildPanel(node) {
     return bar;
   }
 
-  /* ── v3.43.0：场景页的检索 / 收藏 / 浏览增强 ──────────────────────
+  /* ── v3.45.0：场景页的检索 / 收藏 / 浏览增强 ──────────────────────
      一页 190 条，只靠滚动和 5 个档位标题找不到东西，所以补四件：
 
        ① 搜索 —— 空格分词 AND，命中「中文名 / 题材 / 描述 / 固定字段标签
@@ -5321,7 +5335,7 @@ function buildPanel(node) {
        · 这一页只列 `manual: true` 的 32 条；场景页反过来只列非 manual 的 122 条。
        · 一级分组按**部位**（顺序 = 库里书写顺序：面部 → 眼与唇 → 上半身与胸 → 手 → 腿 → 脚），
          不按档位 —— 找"拍腿"时不该先想"这是几档"；档位只做卡片角标。
-       · 套用仍走同一个 `n_canon` 权重机制：引擎侧只对「选项权重 ≥ 3.0」放行，
+       · 套用仍走同一个 `n_canon` 权重机制：引擎侧只对「选项权重 ≥ 5.0」放行，
          所以随机抽取永远抽不到它们（见 tests/check_v3_near.py）。
   */
   function renderNear() {
@@ -5344,7 +5358,7 @@ function buildPanel(node) {
         必要时跑 <code>python tools/build_scenes.py</code> 重建。</div>`;
       return;
     }
-    // v3.43.0：收藏与场景页**共用一份**，所以这一页也要拉（拉过就不重复请求）
+    // v3.45.0：收藏与场景页**共用一份**，所以这一页也要拉（拉过就不重复请求）
     if (!ui.sceneFav && !ui.sceneFavLoading) loadSceneFavs();
     left.innerHTML = "";
     const applied = appliedSceneId();
@@ -5364,7 +5378,7 @@ function buildPanel(node) {
     left.appendChild(tip);
     left.appendChild(autoLevelBar());
 
-    /* v3.43.0：这一页同样要能搜、能只看收藏 —— 60 条按部位排开也不好找。
+    /* v3.45.0：这一页同样要能搜、能只看收藏 —— 60 条按部位排开也不好找。
        ⚠️ 这里**不另开"收藏置顶分区"**：本页的分组维度是部位（面部→腿→脚），
           置顶一块收藏会把部位顺序打断，反而更难读；收藏用「⭐只看收藏」筛。 */
     const toks = sceneTokens(ui.sceneQuery);
@@ -5409,7 +5423,7 @@ function buildPanel(node) {
         ? "🎭 角色来源（仅标了「🎭 角色生效」的条目）："
         : "🎭 角色来源（仅 面部 / 眼与唇 / 上半身与胸）：";
       rb.appendChild(lb);
-      // v3.43.0：给标题一个 id —— 之前只靠「第一个 .av3-charbar 里的 .av3-meta」
+      // v3.45.0：给标题一个 id —— 之前只靠「第一个 .av3-charbar 里的 .av3-meta」
       // 定位，本页新增搜索栏后这个顺序假设立刻失效（冒烟里当场红了一条）。
       lb.id = "av3-near-rolelabel";
       const ip = document.createElement("input");
@@ -5676,7 +5690,7 @@ function buildPanel(node) {
         : "比例通用：特写或没有强空间关系，竖横都成立";
     hd.appendChild(apTag);
     hd.appendChild(nf);
-    /* v3.43.0：收藏星标常驻标题行（折叠也看得见、点得到）。
+    /* v3.45.0：收藏星标常驻标题行（折叠也看得见、点得到）。
        ⚠️ 必须 stopPropagation —— 标题行的 onclick 是"展开 / 收起"，
           不拦的话点一下星标会顺手把卡片展开。 */
     const sfav = document.createElement("span");
@@ -5879,10 +5893,10 @@ function buildPanel(node) {
     const tip = document.createElement("div");
     tip.className = "av3-meta";
     tip.innerHTML =
-      "<b>权重</b>　段 / 字段 / 选项三层，数值 0–3：" +
-      "<b>0</b> = 关闭（永不出现）　<b>1.0</b> = 默认　<b>3.0</b> = 字段必定出现　" +
+      "<b>权重</b>　段 / 字段 / 选项三层，数值 0–5：" +
+      "<b>0</b> = 关闭（永不出现）　<b>1.0</b> = 默认　<b>5.0</b> = 字段必定出现　" +
       "中间值是相对倾向。<br>" +
-      "想让某条选项「一定有」，把它的字段权重拉到 3.0，再把同字段其它选项设为 0。<br>" +
+      "想让某条选项「一定有」，把它的字段权重拉到 5.0，再把同字段其它选项设为 0。<br>" +
       "⚠️ 低于当前档位的内容不会出现 —— 权重改不了这一点。<br>" +
       "🎭 <b>角色的选择在「角色库」页签</b>（点卡片即采用），这里不提供角色权重。";
     tip.style.marginBottom = "8px";
@@ -6274,7 +6288,7 @@ function buildPanel(node) {
       delete bag[key];
       return;
     }
-    const clamped = Math.max(0, Math.min(3, f));
+    const clamped = Math.max(0, Math.min(5, f));
     if (Math.abs(clamped - 1) < 1e-9) delete bag[key];
     else bag[key] = Math.round(clamped * 1000) / 1000;
   }
@@ -6340,9 +6354,9 @@ function buildPanel(node) {
     const cur = { ...(ui.weights.options[field.key] || {}) };
     const inputs = [];
 
-    /* v5.0.1（用户 2026-11-01）：同类型互斥只能有一个「必现」（权重 3）。
-       点第二个 3 时，自动把同字段先前那个降回 1.0 并说明原因 ——
-       否则两个 3.0 会被 forced_option_pool 一起收进候选池、由 weighted_pick
+    /* v5.0.1（用户 2026-11-01）：同类型互斥只能有一个「必现」（权重 5）。
+       点第二个 5 时，自动把同字段先前那个降回 1.0 并说明原因 ——
+       否则两个 5.0 会被 forced_option_pool 一起收进候选池、由 weighted_pick
        二选一，等于「假必现」。
        ⚠️ 后端 draw() 里还有一层兜底 `enforce_option_mutex()`：
           外部脚本直接拼 weights_json 绕过这里，也不会出现两个必现。 */
@@ -6363,7 +6377,7 @@ function buildPanel(node) {
       for (const it of inputs) {
         if (it.en === keepEn) continue;
         const v = Number(cur[it.en]);
-        if (Number.isFinite(v) && v >= 3) {
+        if (Number.isFinite(v) && v >= 5) {
           setWeight(cur, it.en, 1);
           it.inp.value = "1";
           it.paint();
@@ -6396,7 +6410,7 @@ function buildPanel(node) {
       inp.className = "av3-w";
       inp.type = "number";
       inp.min = "0";
-      inp.max = "3";
+      inp.max = "5";
       inp.step = "0.25";
       inp.value = cur[o.en] !== undefined ? String(cur[o.en]) : "1";
       // v4.2.3：权重 ≠ 1.0 时文字变色 —— 一眼看出"这套细则动过谁"。
@@ -6412,16 +6426,16 @@ function buildPanel(node) {
         inp.value = String(v);
         setWeight(cur, o.en, v);
         paint();
-        if (Number(v) >= 3) dropOtherForced(o.en);
+        if (Number(v) >= 5) dropOtherForced(o.en);
       };
       inp.oninput = () => {
         setWeight(cur, o.en, inp.value);
         paint();
-        if (Number(inp.value) >= 3) dropOtherForced(o.en);
+        if (Number(inp.value) >= 5) dropOtherForced(o.en);
       };
       const quick = document.createElement("span");
       quick.style.cssText = "display:flex;gap:3px";
-      for (const v of [0, 1, 2, 3]) {
+      for (const v of [0, 1, 2, 3, 4, 5]) {
         const qb = document.createElement("button");
         qb.className = "av3-t";
         qb.textContent = String(v);
@@ -7257,10 +7271,10 @@ function buildPanel(node) {
       w.sections = w.sections || {};
       w.fields = w.fields || {};
       w.options = w.options || {};
-      w.fields.n_canon = 3.0;
+      w.fields.n_canon = 5.0;
       const bag = {};
       for (const en of all) bag[en] = 0;
-      bag[sc.id] = 3.0;
+      bag[sc.id] = 5.0;
       w.options.n_canon = bag;
       // 段权重不能是 0（否则引擎把 canon 段当关闭，预设根本不生效）
       if (Number(w.sections.canon ?? 1) === 0) w.sections.canon = 1;
@@ -7333,7 +7347,8 @@ function buildPanel(node) {
   refreshCounter();
   syncTabs();
   restoreUiScroll();            // v3.25.0：按记忆回到上次的位置（懒加载页会自动重试）
-  document.body.appendChild(mask);
+  if (host) host.appendChild(mask); else document.body.appendChild(mask);
+  return mask;
 }
 
 /* ── 节点按钮 ─────────────────────────────────────────────────────── */

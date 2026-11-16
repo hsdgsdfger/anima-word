@@ -431,12 +431,22 @@ export function ensureStyles() {
 .aps-card.on { border-color: var(--aps-amber); box-shadow: 0 0 0 1px rgba(240,180,92,.25) inset; }
 .aps-card-thumb { width: 46px; height: 46px; border-radius: 6px; overflow: hidden; flex: 0 0 auto; background: #0e1116; }
 .aps-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.aps-card-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
-.aps-card-zh { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.aps-card-en { font-size: 11px; color: var(--aps-dim); line-height: 1.35;
+.aps-card-main { min-width: 0; flex: 1 1 0; width: 0; display: flex; flex-direction: column; gap: 3px; }
+.aps-card-zh { font-size: 12px; font-weight: 600; color: var(--aps-text); line-height: 1.35;
+  white-space: normal; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.aps-card-en { font-size: 11px; color: var(--aps-dim); line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: anywhere; }
 .aps-card-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
-.aps-card-side { align-self: center; color: var(--aps-amber); font-weight: 700; font-size: 15px; }
+.aps-card-star { flex: 0 0 27px; align-self: center; width: 27px; height: 27px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: 6px; background: transparent;
+  color: var(--aps-dim); font-size: 17px; line-height: 1; cursor: pointer;
+  position: relative; z-index: 2; }
+.aps-card-star:hover { color: var(--aps-amber); background: #2a313d; border-color: #3d4656; }
+.aps-card-star:active { transform: scale(.94); }
+.aps-card-side { flex: 0 0 auto; align-self: center; color: var(--aps-amber); font-weight: 700; font-size: 15px; }
 `;
   const style = document.createElement("style");
   style.id = "aps-style";

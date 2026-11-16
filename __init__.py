@@ -8,13 +8,14 @@
   · 统一目录：V6 词库 + V6 角色/场景/服装 + Tools 画师/角色/服装/姿势/背景
     + 社区 Tag 库 + 我的 Tag
   · 可拖拽排序的多 LoRA 加载器（数组顺序 = 应用顺序）
+  · V6 正文默认转换为真正提示词并写入图片元数据（无 UI、无额外输出）
   · AI provider 接口（默认关闭，不联网）
 
 节点与 V6 的类名**完全不同**，两个插件可以并存；新工作流请用本插件节点。
 """
 from __future__ import annotations
 
-__version__ = "1.0.3"
+__version__ = "1.0.6"
 
 from .nodes_v6 import (
     AnimaV4PromptAssemble as _V6Assemble,

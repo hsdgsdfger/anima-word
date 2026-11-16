@@ -17,6 +17,21 @@ const ITEMS = [
   { id: "v6:pose_sfw:standing", cat: "v6:pose_sfw", en: "standing", zh: "站姿", slot: "pose", level: 0, src: "v6", thumb: "", tags: [] },
   { id: "v6:scene:classroom", cat: "v6:scene", en: "classroom", zh: "教室", slot: "scene", level: 0, src: "v6", thumb: "", tags: [] },
 ];
+const FAVS = new Set();
+const CONTRACT = {
+  sections: [
+    { id: "count", title: "① 数量与身份", fields: [
+      { key: "count", lab: "人数构成 *" }, { key: "role", lab: "角色（可选）" },
+    ] },
+    { id: "hair", title: "② 头发", fields: [
+      { key: "hair_len", lab: "长度" }, { key: "hair_color", lab: "颜色" },
+    ] },
+    { id: "scene", title: "⑨ 场景与环境", fields: [
+      { key: "place", lab: "地点" }, { key: "weather", lab: "天气氛围" },
+    ] },
+  ],
+  weights: { min: 0, max: 3, default: 1, base_prob_default: 0.65 },
+};
 
 const META = {
   total: ITEMS.length,
@@ -91,8 +106,15 @@ export const api = {
         counts: { manual: items.length, total: items.length }, fixes: [],
       });
     }
-    if (path.endsWith("/studio/favorites")) return json({ ok: true, ids: ["v6char:hatsune_miku"], items: [] });
-    if (path.endsWith("/studio/favorites/toggle")) return json({ ok: true, ids: ["v6char:hatsune_miku"] });
+    if (path.endsWith("/contract")) return json(CONTRACT);
+    if (path.endsWith("/pools")) return json({ sections: [], canon: {}, counters: {} });
+    if (path.endsWith("/studio/favorites")) return json({ ok: true, ids: [...FAVS], items: [] });
+    if (path.endsWith("/studio/favorites/toggle")) {
+      const body = JSON.parse(opts.body || "{}");
+      const id = body.id;
+      if (FAVS.has(id)) FAVS.delete(id); else FAVS.add(id);
+      return json({ ok: true, on: FAVS.has(id), ids: [...FAVS] });
+    }
     if (path.endsWith("/studio/my-tags")) return json({ ok: true, items: [{ en: "my tag", zh: "我的", slot: "general" }] });
     if (path.endsWith("/studio/my-tags/save")) return json({ ok: true });
     if (path.endsWith("/loras")) return json({ ok: true, items: [

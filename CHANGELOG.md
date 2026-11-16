@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.0.6 — 2026-11-16
+
+- 提示词工坊顶部改为固定三页签：`权重库 / 提示词 / 预设`，默认进入 `权重库`。
+- `提示词` 页分 `模板 / 通用`：模板为 V6 原版并隐藏右侧预览/手选托盘；
+  通用显示目录、托盘和预览，且强制手选模式。
+- 权重库与随机只控制模板；模板新增“固定描述（随机时保留）”。
+- 权重统一到 `0–5`：0 不出现，5 必定出现，1–4 概率递增；完整 V6 面板、
+  场景必现、互斥降级、手动权重上限同步到 5.0。
+- 左侧“已保存的权重”改为单入口；支持保存/应用/删除多条权重库。
+- 手选托盘只显示提示词文字和行尾删除符号；收藏星标增加 pointer 隔离。
+- 提示词预览按人物、外貌、服装、姿势、风格、镜头、场景、光照分组。
+- 主节点控件增加中文显示名，输出名改为中文；专有名词与键名保持不变。
+- 修复 `/studio/my-tags` 返回 `items` 时“我的 Tag”空白；修复旧页签
+  `v6full` 无入口导致的空引用；修复测试 harness 与新默认页不同步的问题。
+
+## 1.0.5 — 2026-11-16
+
+- 并入旧 `ComfyUI-AnimaPromptDecoupler` 的“V6 正文 → 真正提示词”逻辑，
+  新模块 `prompt_decouple.py`（纯标准库，不注册节点、不提供 UI）。
+- 元数据入口默认启用转换；主节点 `text` 输出仍是 V6 原文，不影响采样。
+- PNG/API 元数据 `anima_v4_prompt` / `anima_v3_prompt` 的 `positive` 改为
+  转换后的真正提示词，新增 `positive_raw` 保存 V6 原文；新增 `prompt_nl`、
+  `prompt_negative`、`conversion` 字段。
+- `OWN_TEXT_OUTPUT_SLOT` 补入 `AnimaPromptStudio`、`AnimaPromptStudioRandom`
+  及 V6/V5/V4/V3 随机节点，修复主节点工作流元数据定位。
+- 新增 `tests/test_prompt_metadata.py`，覆盖转换、原文保留和 Studio 节点种子。
+
+## 1.0.4 — 2026-11-16
+
+- 删除主工坊面板里的 `LoRA` 页签、LoRA 状态和 `lora_json` 输出。
+- `AnimaPromptStudio` 输出从 6 个变为 5 个：
+  `text / report / level / cn_summary / negative`。
+- 保留独立的 `AnimaLoraStack` 多 LoRA 加载器节点及其可拖拽排序面板；
+  它继续直接读取 `models/loras`，数组下标就是加载顺序。
+- 用户数据目录 `user/anima_prompt_studio` 不变。
+
 ## 1.0.3 — 2026-11-16
 
 - 对外插件名改为 `anima-word`：安装目录、GitHub 仓库、zip、面板标题、

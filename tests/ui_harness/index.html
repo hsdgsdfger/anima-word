@@ -14,7 +14,7 @@
   <div id="panel-host"></div>
   <pre id="testlog"></pre>
   <script type="module">
-    import { openStudio } from "./js/studio.js?v=103";
+    import { openStudio } from "./js/studio.js?v=105";
 
     const logEl = document.getElementById("testlog");
     const lines = [];
@@ -43,6 +43,9 @@
         widget("mode", "manual"),
         widget("nsfw_level", "sfw"),
         widget("seed", -1),
+        widget("weights_json", ""),
+        widget("role_pick", false), widget("scene_pick", false),
+        widget("role_fav_only", false),
         widget("artist_weight", 0.9), widget("character_weight", 0.9),
         widget("clothing_weight", 0.9), widget("pose_weight", 0.9),
         widget("scene_weight", 0.9), widget("lighting_weight", 0.9),
@@ -58,54 +61,92 @@
 
     setTimeout(async () => {
       try {
-        await sleep(500);
+        await sleep(600);
+        const activeTop = document.querySelector(".aps-subtab.on")?.dataset.tab || "";
+        log("defaultTab=" + activeTop);
+        if (activeTop !== "weights") throw new Error("default tab should be weights");
+
+        const weightsSecs = document.querySelectorAll(".aps-v6-sec");
+        log("weightSections=" + weightsSecs.length);
+        if (!weightsSecs.length) throw new Error("weight library empty");
+        const five = document.querySelector('.aps-v6-sec [data-v6-field][data-v6-val="5"]');
+        log("hasFiveLevel=" + !!five);
+        if (!five) throw new Error("missing 5 level button");
+        five.click();
+        await sleep(250);
+        const wj0 = JSON.parse(node.widgets.find((w) => w.name === "weights_json").value || "{}");
+        const firstField = Object.values(wj0.fields || {}).find((v) => Number(v) === 5);
+        log("fiveSaved=" + (firstField !== undefined));
+        if (firstField === undefined) throw new Error("clicking 5 did not save weight 5");
+
+        document.querySelector('.aps-subtab[data-tab="prompts"]').click();
+        await sleep(300);
+        const trayHidden = !document.querySelector(".aps-tray").offsetParent;
+        const sideHidden = !document.querySelector(".aps-side").offsetParent;
+        log("templateTrayHidden=" + trayHidden + " sideHidden=" + sideHidden);
+        if (!trayHidden || !sideHidden) throw new Error("template should hide tray and side");
+
+        const fixed = document.querySelector(".aps-template-fixed");
+        if (!fixed) throw new Error("missing fixed description input");
+        fixed.value = "雨夜街头";
+        fixed.dispatchEvent(new Event("change"));
+        document.querySelector('.aps-subtab[data-tab="weights"]').click();
+        await sleep(250);
+        document.querySelector('.aps-subtab[data-tab="prompts"]').click();
+        await sleep(250);
+        if (document.querySelector(".aps-template-fixed").value !== "雨夜街头") {
+          throw new Error("fixed description lost across tabs");
+        }
+        log("fixedPersisted=true");
+
+        document.querySelector('.aps-ptab[data-ptab="general"]').click();
+        await sleep(250);
+        log("modeRow=" + document.querySelector(".aps-mode-row")?.style.display);
+        if (document.querySelector(".aps-mode-row")?.style.display !== "none") {
+          throw new Error("general should hide mode row");
+        }
         const cards = document.querySelectorAll(".aps-card");
         log("cards=" + cards.length);
         if (!cards.length) throw new Error("no catalog cards rendered");
-        log("card0=" + cards[0].querySelector(".aps-card-en")?.textContent);
-        cards[0].click();
+        const cardZh = cards[0].querySelector(".aps-card-zh")?.textContent || "";
+        const cardEn = cards[0].querySelector(".aps-card-en")?.textContent || "";
+        log("card0=" + cardZh + " / " + cardEn);
+        if (!cardZh.trim() || !cardEn.trim() || cardZh.trim() === "...") {
+          throw new Error("card title is empty or ellipsis");
+        }
+        const star = cards[0].querySelector(".aps-card-star");
+        log("starBefore=" + star?.textContent);
+        star?.click();
+        await sleep(200);
+        log("starAfter=" + cards[0].querySelector(".aps-card-star")?.textContent);
+        if (cards[0].querySelector(".aps-card-star")?.textContent !== "★") {
+          throw new Error("favorite star click failed");
+        }
 
-        const previewBtn = document.querySelector(".aps-preview-btn");
-        previewBtn.click();
-        await sleep(600);
-        log("preview=" + document.querySelector(".aps-preview .pos")?.textContent);
-        log("negative=" + document.querySelector(".aps-preview .neg")?.textContent);
+        cards[0].click();
+        document.querySelector(".aps-preview-btn").click();
+        await sleep(500);
         log("trayCount=" + document.querySelector(".aps-tray-n")?.textContent);
+        log("trayWeightInputs=" + document.querySelectorAll(".aps-sel input[data-k]").length);
+        if (document.querySelectorAll(".aps-sel input[data-k]").length) {
+          throw new Error("tray should not render weight controls");
+        }
+        log("preview=" + (document.querySelector(".aps-preview .pos")?.textContent || "").slice(0, 80));
 
         const loraTab = document.querySelector('.aps-subtab[data-tab="lora"]');
-        loraTab.click();
-        await sleep(900);
-        const addRows = [...document.querySelectorAll(".aps-lora-local [data-add='1']")];
-        log("loraAdd=" + addRows.length);
-        if (addRows.length < 2) throw new Error("not enough LoRA rows");
-        addRows[0].click();
-        addRows[1].click();
-        await sleep(250);
-        log("loraOrder1=" + [...document.querySelectorAll(".aps-lora-item .nm")].map((x) => x.textContent).join(" | "));
-        const down = document.querySelector('.aps-lora-item [data-act="down"]');
-        down?.click();
-        await sleep(150);
-        log("loraOrder2=" + [...document.querySelectorAll(".aps-lora-item .nm")].map((x) => x.textContent).join(" | "));
+        log("loraTabRemoved=" + !loraTab);
+        if (loraTab) throw new Error("LoRA studio tab should be removed");
 
         document.querySelector(".aps-apply-btn").click();
-        await sleep(250);
+        await sleep(200);
         const sj = JSON.parse(node.widgets.find((w) => w.name === "studio_json").value);
-        log("savedMode=" + sj.mode + " items=" + (sj.items || []).length + " lora=" + (sj.lora || []).length);
-        log("loraNames=" + (sj.lora || []).map((x) => x.name).join(" | "));
+        log("savedMode=" + sj.mode + " items=" + (sj.items || []).length);
+        if ("lora" in sj) throw new Error("studio_json should not carry lora anymore");
 
-        document.querySelector('.aps-subtab[data-tab="ai"]').click();
-        await sleep(350);
-        log("aiText=" + document.querySelector(".aps-ai")?.textContent.replace(/\s+/g, " ").slice(0, 140));
-
-        document.querySelector('.aps-subtab[data-tab="my"]').click();
-        await sleep(250);
-        log("myText=" + document.querySelector(".aps-my-list")?.textContent.replace(/\s+/g, " ").slice(0, 100));
-
-        // 来源筛选：tools 只应留下 Anima-Tools 的 @test
         const srcEl = document.querySelector(".aps-src");
         srcEl.value = "tools";
         srcEl.dispatchEvent(new Event("change"));
-        await sleep(500);
+        await sleep(400);
         const srcCards = [...document.querySelectorAll(".aps-card")];
         const srcText = srcCards[0]?.querySelector(".aps-card-en")?.textContent || "";
         log("srcTools=" + srcCards.length + " / " + srcText);
@@ -114,54 +155,34 @@
         srcEl.dispatchEvent(new Event("change"));
         await sleep(300);
 
-        // 场景分类随机：按钮文案应变成“随机场景”，点一下应真的进托盘
         document.querySelector('.aps-side-item[data-cat="v6:scene"]')?.click();
-        await sleep(450);
+        await sleep(400);
         const randomBtn = document.querySelector(".aps-random");
         log("randomLabel=" + randomBtn?.textContent);
         if (!randomBtn || !randomBtn.textContent.includes("随机场景")) throw new Error("scene random label failed");
         randomBtn.click();
-        await sleep(350);
+        await sleep(300);
         const sceneRow = [...document.querySelectorAll(".aps-sel")].find(
           (el) => el.dataset.id === "v6:scene:classroom");
         log("sceneRandom=" + (sceneRow ? sceneRow.dataset.id : "MISSING"));
         if (!sceneRow) throw new Error("scene random did not reach tray");
         document.querySelector('.aps-side-item[data-cat="__all__"]')?.click();
-        await sleep(400);
+        await sleep(300);
 
-        // 槽位排序下点“下移”应自动切到手选顺序，且第一项真的变化
-        if (document.querySelectorAll(".aps-sel").length < 2) {
-          const moreCards = [...document.querySelectorAll(".aps-card")];
-          const extra = moreCards.find((c) => !c.classList.contains("on"));
-          extra?.click();
-          await sleep(250);
-        }
-        const orderEl = document.querySelector(".aps-order");
-        orderEl.value = "slot";
-        orderEl.dispatchEvent(new Event("change"));
-        await sleep(250);
-        const firstBefore = document.querySelector(".aps-sel")?.dataset.id || "";
-        document.querySelector(".aps-sel [data-act='down']")?.click();
-        await sleep(250);
-        const firstAfter = document.querySelector(".aps-sel")?.dataset.id || "";
-        log("reorder=" + orderEl.value + " " + firstBefore + " -> " + firstAfter);
-        if (orderEl.value !== "custom" || firstBefore === firstAfter) throw new Error("tray reorder failed");
+        document.querySelector('.aps-subtab[data-tab="weights"]').click();
+        await sleep(300);
+        const each = document.querySelector(".aps-v6-random-each");
+        log("randomEachChecked=" + each.checked);
+        if (!each.checked) throw new Error("seed=-1 should mean per-task random");
+        each.click();
+        await sleep(200);
+        log("randomEachOffSeed=" + node.widgets.find((w) => w.name === "seed").value);
+        if (node.widgets.find((w) => w.name === "seed").value < 0) throw new Error("fixed seed not restored");
+        each.click();
+        await sleep(200);
+        log("randomEachOnSeed=" + node.widgets.find((w) => w.name === "seed").value);
+        if (node.widgets.find((w) => w.name === "seed").value !== -1) throw new Error("per-task random not set");
 
-        if (location.search.includes("lora")) {
-          document.querySelector('.aps-subtab[data-tab="lora"]').click();
-          await sleep(300);
-          const loraLeft = document.querySelector(".aps-lora-left")?.getBoundingClientRect();
-          const loraRight = document.querySelector(".aps-lora-right")?.getBoundingClientRect();
-          const overlap = loraLeft && loraRight && !(loraLeft.bottom <= loraRight.top
-            || loraRight.bottom <= loraLeft.top || loraLeft.right <= loraRight.left
-            || loraRight.right <= loraLeft.left);
-          log("loraLayout vp=" + innerWidth + "x" + innerHeight
-            + " left=" + (loraLeft ? Math.round(loraLeft.width) + "x" + Math.round(loraLeft.height) : "-")
-            + " right=" + (loraRight ? Math.round(loraRight.width) + "x" + Math.round(loraRight.height) : "-")
-            + " overlap=" + Boolean(overlap));
-          if (overlap) throw new Error("LoRA panels overlap");
-          log("finalTab=lora");
-        }
         log("DONE");
       } catch (e) {
         log("TEST_ERROR " + (e?.stack || e));

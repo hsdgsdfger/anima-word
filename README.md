@@ -6,11 +6,26 @@
 [Comfyui-Anima-Tools](https://github.com/nregret/Comfyui-Anima-Tools)
 的素材库 / 多提示词框 / 多 LoRA 加载器合成一套面板。
 
-- 版本：`1.0.3`（V6 引擎内部版本 `7.0.0`）
+- 版本：`1.0.6`（V6 引擎内部版本 `7.0.0`）
 - 许可：GPL-3.0（因为内嵌 V6；详见 `LICENSE`、`THIRD_PARTY_NOTICES.md`）
 - 依赖：无第三方 Python 依赖；只要 ComfyUI 自带的 Python 环境
 - 真机验证：ComfyUI `0.45.3` / Python `3.13.12` / 前端 `1.58.5`
 
+> **1.0.6 更新（2026-11）**：统一提示词工坊 UI：顶部 `权重库 / 提示词 / 预设`
+> 三页签，默认打开 `权重库`；提示词页分 `模板 / 通用`，模板只跑 V6 原版并隐藏
+> 右侧预览/手选托盘，通用才显示目录、托盘和预览。权重与随机只控制模板。
+> 权重范围统一为 `0–5`：0 不出现、5 必定出现、1–4 概率递增；完整 V6 面板、
+> 场景必现和互斥逻辑同步到 5.0。新增“已保存的权重”单入口、多条权重库、
+> 模板固定描述随机、预览按人物/风格/场景分组、主节点控件中文显示名。
+>
+> **1.0.5 更新（2026-11）**：把旧解耦插件的“V6 正文 → 真正提示词”逻辑并入
+> 插件内部，默认启用、无 UI、无额外输出。主节点 `text` 仍返回 V6 原文供采样；
+> PNG 元数据里的 `positive` 写转换结果，`positive_raw` 保留原文。
+>
+> **1.0.4 更新（2026-11）**：删除主工坊面板的 `LoRA` 页签和 `lora_json` 输出，
+> 主节点输出变为 5 个；独立 `AnimaLoraStack` 多 LoRA 加载器节点保留，
+> 仍可在节点排序面板里自由调整 LoRA 顺序。
+>
 > **1.0.3 更新（2026-11）**：对外插件名改为 `anima-word`；安装目录、GitHub 仓库、
 > zip 和面板标题同步。为了不破坏已有工作流，节点类名 `AnimaPromptStudio*` 和
 > 路由前缀 `/anima-prompt-studio` 保持不变。
@@ -42,9 +57,10 @@ V6 很强，但它是“随机抽一整段”；Anima-Tools 的素材很多，�
    分页、按分类挑；挑中的条目进“手选托盘”，可调权重、开关、拖拽排序。
 2. **三种出词模式**：`manual`（只出手选）/ `hybrid`（手选打底，V6 随机补
    未覆盖的段）/ `random`（完全走 V6 引擎）。
-3. **LoRA 顺序真的可调**：`AnimaLoraStack` 的 `lora_list_json` 是**有序数组**，
-   数组下标就是加载顺序；面板支持拖拽、上移/下移、复制、启用开关、
-   model/clip 双强度、触发词、命名堆栈保存/加载/导入导出。
+3. **多 LoRA 加载器保留为独立节点**：`AnimaLoraStack` 的 `lora_list_json`
+   是**有序数组**，数组下标就是加载顺序；节点按钮打开排序面板，支持拖拽、
+   上移/下移、复制、启用开关、model/clip 双强度、触发词、命名堆栈。
+   主工坊面板不再内置 LoRA 页签。
 
 另外把 Anima-Tools 的画师 / 角色 / 服装 / 姿势 / 背景 / 社区 Tag 库并进同一
 张目录；AI 功能按用户要求**暂不实现**，只留下 provider 接口和请求/响应契约。
@@ -69,6 +85,7 @@ V6 很强，但它是“随机抽一整段”；Anima-Tools 的素材很多，�
 | 负面词基线 / 档位压制 / 冲突对 | 新增 | `negative.py` + 面板“负面词”设置 |
 | 我的 Tag / 收藏 / 最近使用 | 新增 | 面板页签 + 用户目录 JSON |
 | 预设 / 历史 / 导入导出 | 新增 | 面板页签（localStorage） |
+| V6 正文 → 真正提示词 → PNG 元数据 | 新增 | 默认开启、无 UI；`anima_v4_prompt.positive` 为转换结果，`positive_raw` 保留原文 |
 | AI provider 接口 | 预留 | `ai_bridge.py`，默认关闭，`/ai/enhance` 返回 501 |
 
 统一目录当前规模：**62,585 条 / 31 个分类**。分组：
@@ -133,7 +150,7 @@ V6 很强，但它是“随机抽一整段”；Anima-Tools 的素材很多，�
 ### 3.4 LoRA 放哪里
 
 `AnimaLoraStack` 读取 ComfyUI 的 `models/loras`（`folder_paths` 注册的所有
-LoRA 路径）。把 `.safetensors` 放进去，重启或刷新节点后，面板“本地 LoRA”
+LoRA 路径）。把 `.safetensors` 放进去，重启或刷新节点后，节点的“本地 LoRA”
 列表会出现。测试机识别到 21 个 LoRA。
 
 ---
@@ -146,11 +163,10 @@ LoRA 路径）。把 `.safetensors` 放进去，重启或刷新节点后，面�
 AnimaPromptStudio
   ├─ text ───────────────► CLIP Text Encode（正向）──► KSampler positive
   ├─ negative ───────────► CLIP Text Encode（负向）──► KSampler negative
-  ├─ lora_json ──────────► AnimaLoraStack（右键 lora_list_json → 转输入）
   └─ report / level / cn_summary ──► 可选：Show Text / 调试
 ```
 
-`AnimaPromptStudio` 的 6 个输出：
+`AnimaPromptStudio` 的 5 个输出：
 
 | 输出 | 类型 | 说明 |
 |---|---|---|
@@ -159,7 +175,6 @@ AnimaPromptStudio
 | `level` | STRING | 档位标签，如 `0 · 全年龄` |
 | `cn_summary` | STRING | 中文摘要，方便核对选了什么 |
 | `negative` | STRING | 负面提示词（按档位/冲突对生成） |
-| `lora_json` | STRING | 工坊里配好的**有序** LoRA 数组，接 `AnimaLoraStack` |
 
 主节点在 V6 原有控件**末尾**追加了三个 optional 控件，V6 控件顺序不变：
 
@@ -208,7 +223,6 @@ AnimaPromptStudio
   "extra_text": "",
   "negative_preset": "standard",
   "negative_extra": "",
-  "lora": [],
   "ui": {}
 }
 ```
@@ -224,7 +238,7 @@ AnimaPromptStudio
 
 | 节点类名 | 显示名 | 作用 |
 |---|---|---|
-| `AnimaPromptStudio` | anima-word · 提示词工坊 | 主节点，三模式 + 6 输出 |
+| `AnimaPromptStudio` | anima-word · 提示词工坊 | 主节点，三模式 + 5 输出 |
 | `AnimaPromptStudioRandom` | anima-word · 提示词随机生成（V6 引擎） | 纯 V6 随机节点，保留 V6 全部控件 |
 | `AnimaPromptStudioGrader` | anima-word · 提示词分级审查 | V6 `PromptGrader` |
 | `AnimaPromptStudioMerge` | anima-word · 提示词拼接台 | V6 `PromptAssemble` |
@@ -238,13 +252,17 @@ AnimaPromptStudio
 
 ---
 
-## 6. LoRA 顺序：这次真的能调
+## 6. 多 LoRA 加载器（独立节点）
 
-### 6.1 在工坊里配
+主工坊面板已经不再内置 LoRA 页签。LoRA 顺序只在独立的 `AnimaLoraStack`
+节点里配置；这个节点保留 Tools 的多 LoRA 加载思路，并且顺序可以自由调整。
 
-1. 打开主节点面板 → `LoRA` 页签。
-2. 左侧“本地 LoRA”点 `＋` 加入右侧“应用顺序”。
-3. 右侧每一项：
+### 6.1 在 `AnimaLoraStack` 节点里配
+
+1. 在画布上添加 `AnimaLoraStack`，接好 `model`（可选 `clip`）。
+2. 点节点上的 **“🔗 打开 LoRA 排序面板”**。
+3. 左侧“本地 LoRA”点 `＋` 加入右侧“应用顺序”。
+4. 右侧每一项：
    - `⋮⋮` 拖拽手柄：直接拖动排序；
    - `↑` / `↓`：上移/下移；
    - `⧉`：复制；
@@ -252,16 +270,14 @@ AnimaPromptStudio
    - `启用`：关掉的不加载；
    - `model` / `clip`：两个强度分开；
    - `触发词`：可填多个，用逗号分隔。
-4. 数字 `1, 2, 3…` 就是实际加载顺序。
-5. 点“写回节点”，面板会把 `lora` 数组写进 `studio_json`；主节点的
-   `lora_json` 输出就是这份**有序**数组。
+5. 数字 `1, 2, 3…` 就是实际加载顺序，数组下标即顺序。
+6. 面板支持命名堆栈（保存/加载/删除/导入/导出 JSON）；堆栈存在
+   `user/anima_prompt_studio/lora_stacks.json`。
 
-### 6.2 接到 `AnimaLoraStack`
+### 6.2 顺序怎么写进节点
 
-1. 把 `AnimaPromptStudio.lora_json` 连到 `AnimaLoraStack` 的 `lora_list_json`。
-2. 如果 `lora_list_json` 是必填输入，右键该输入 → `Convert to input`（转成
-   输入），再连线。
-3. `AnimaLoraStack` 逐项调用 `load_lora_for_models`，数组下标即顺序：
+`AnimaLoraStack` 的 `lora_list_json` 是有序数组；节点按钮打开的面板会直接
+写入它。手动接线或脚本生成时，格式如下：
 
 ```json
 [
@@ -272,9 +288,12 @@ AnimaPromptStudio
 ]
 ```
 
-4. 节点有 `trigger_text` 输出，把触发词拼成一段，可接到正向提示词后面。
-5. 面板支持命名堆栈（保存/加载/删除/导入/导出 JSON）；堆栈存在
-   `user/anima_prompt_studio/lora_stacks.json`。
+节点右侧输出：
+
+- `model`：逐项加载后的 MODEL
+- `clip`：逐项加载后的 CLIP
+- `triggers`：启用的触发词拼成一段
+- `report`：加载报告
 
 > 已知限制：没有做 Civitai 在线检索/下载（Anima-Tools 的 LoRA 管理器有这
 > 一块）。当前只管理本地 `models/loras`；如果你需要在线发现，可以在这个
@@ -388,9 +407,9 @@ python -m http.server 8200 --bind 127.0.0.1
 ```
 
 它 mock 了 `scripts/app.js`、`scripts/api.js` 和目录/LoRA/AI 接口，实际渲染
-主工坊面板，自动点卡片、预览、LoRA 加两条、下移排序、写回节点、切 AI/我的
-Tag。页面底部 `#testlog` 会打印 `cards=12`、`preview=...`、`loraOrder...`、
-`DONE` 等结果。2026-11-16 的 headless Edge 实测通过。
+主工坊面板，自动点卡片、预览、确认 LoRA 页签已移除、写回节点、切 AI/我的
+Tag。页面底部 `#testlog` 会打印 `cards=12`、`preview=...`、
+`loraTabRemoved=true`、`DONE` 等结果。2026-11-16 的 headless Edge 实测通过。
 
 ### 10.3 真机 ComfyUI
 
@@ -408,11 +427,12 @@ cd E:\Game\ComfyUI-Installs\Anima模型\ComfyUI
   `catalog_total: 62585`、`catalog_cats: 31`、`loras: 21`；
 - `/catalog/meta`、`/catalog/items?cat=artist&limit=3`、`/loras`、`/ai/status`、
   `/health`、`/studio/favorites`、`POST /compose` 全部 200；
-- `/extensions/anima-word/studio.js` 200，52,441 bytes；
+- `/extensions/anima-word/studio.js` 200，51,334 bytes；
 - `/anima-prompt-studio/thumb/hatsune_miku` 200，`image/webp`，10,138 bytes。
 - 真实 ComfyUI 页面：节点库搜索 `AnimaPromptStudio` 能列出 11 个节点；插入主
   节点后点“🎨 打开提示词工坊”，面板正常渲染；点第一张卡片（1girl, solo）→
-  “预览出词”返回 `1girl, solo` + 负面词；LoRA 页签列出本机 21 个 LoRA。
+  “预览出词”返回 `1girl, solo` + 负面词；主工坊面板已无 LoRA 页签，
+  `AnimaLoraStack` 作为独立节点保留。
 - `AnimaLoraStack` 的真实文件加载链已单独验证：`load_torch_file(path,
   safe_load=False)` + `load_lora_for_models` 两段 API 与 ComfyUI 0.45.3 的签名
   一致，并用一条真实 142MB LoRA 确认按数组顺序进入加载函数。
@@ -477,6 +497,7 @@ anima-word/
 │   └── ui_harness/
 ├── docs/
 │   ├── 功能对照表.md
+│   ├── 1.0.6-UI与权重改造.md
 │   ├── 安装与升级.md
 │   └── API.md
 ├── LICENSE                     # GPL-3.0 + 本插件衍生说明

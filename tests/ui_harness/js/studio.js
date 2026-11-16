@@ -14,11 +14,11 @@ import {
   Modal, NS, copyText, debounce, downloadText, ensureStyles, esc, fetchJSON,
   hideWidget, openCatalogPicker, postJSON, thumbURL, toast, wset, wval, widget,
 } from "./aps_common.js";
-import { LoraEditor } from "./lora_panel.js";
 
 const PRESET_KEY = "aps.presets.v1";
 const HISTORY_KEY = "aps.history.v1";
 const RECENT_KEY = "aps.recent.v1";
+const WEIGHT_LIB_KEY = "anima-word.weight-libs.v1";
 
 const SLOT_ORDER = {
   quality: -1, artist: 0, character: 1, appearance: 2, clothing: 3,
@@ -30,6 +30,21 @@ const SLOT_LABEL = {
   lighting: "光影", other: "其他",
 };
 const MODE_LABEL = { manual: "手选", hybrid: "混合", random: "随机" };
+const WIDGET_ZH = {
+  nsfw_level: "画面档位", seed: "随机种子", tag_cap: "标签上限",
+  base_prob: "基础抽取概率", disabled_sections: "禁用段", lock_fields: "锁定字段",
+  force_role: "强制角色", weights_json: "权重数据", extra_body: "追加人物特征",
+  appearance_follow: "角色外貌跟随", selected_roles: "已选角色",
+  big_breasts: "巨乳（旧）", role_works: "限定作品", breast_size: "胸部大小",
+  outfit_style: "服装风格", role_fav_only: "只从收藏选角",
+  hair_follow: "官方发型跟随", hair_len_pick: "发型长度选择",
+  hair_tie_pick: "发型束发选择", hair_curl_pick: "发型卷曲选择",
+  hair_acc_pick: "发饰选择", role_pick: "抽取角色", scene_pick: "随机场景",
+  dry_skin_filter: "皮肤干爽过滤", dry_skin_groups: "干爽过滤分组",
+  dry_skin_tags: "干爽过滤标签", duo_role_fill: "双女自动补位",
+  pick_pool_mode: "勾选池模式", pick_pool_ids: "勾选池编号",
+  mode: "出词模式", studio_json: "工坊状态", manual_text: "手写补充",
+};
 const SCENE_CATS = new Set([
   "v6:scene", "background", "scene_sfw", "scene_nsfw",
   "scene_pose", "scene_art", "scene_weapon", "scene_near", "v6:canon",
@@ -45,6 +60,8 @@ function ensureStudioStyles() {
   style.textContent = `
 .aps-studio-body { padding: 0 !important; overflow: hidden; }
 .aps-studio { flex: 1; display: flex; min-height: 0; width: 100%; }
+.aps-studio.no-side .aps-side { display: none; }
+.aps-studio.no-tray .aps-tray { display: none; }
 .aps-side { width: 216px; flex: 0 0 auto; border-right: 1px solid var(--aps-line);
   display: flex; flex-direction: column; min-height: 0; background: #14171d; }
 .aps-side-search { padding: 8px 10px; border-bottom: 1px solid var(--aps-line); }
@@ -68,6 +85,31 @@ function ensureStudioStyles() {
 .aps-subtab:hover { color: var(--aps-text); background: #1d222b; }
 .aps-subtab.on { color: var(--aps-amber2); background: var(--aps-bg);
   border-color: var(--aps-line); box-shadow: inset 0 2px 0 var(--aps-amber); }
+.aps-prompt-tabs { display: flex; gap: 4px; padding: 7px 10px 0; border-bottom: 1px solid var(--aps-line);
+  background: #15181f; flex: 0 0 auto; }
+.aps-prompt-tabs[hidden] { display: none; }
+.aps-ptab { border: 1px solid var(--aps-line); border-bottom: 0; background: #1a1f27;
+  color: var(--aps-dim); padding: 6px 16px; border-radius: 8px 8px 0 0; cursor: pointer;
+  font-size: 12px; font-family: inherit; }
+.aps-ptab.on { color: var(--aps-amber2); background: var(--aps-bg); font-weight: 700;
+  box-shadow: inset 0 2px 0 var(--aps-amber); }
+.aps-template-head { padding: 12px 14px; border-bottom: 1px solid var(--aps-line);
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.aps-template-head .t { font-weight: 700; font-size: 13px; }
+.aps-template-head .sub { color: var(--aps-dim); font-size: 11px; line-height: 1.6; }
+.aps-template-fixed-row { padding: 10px 14px; display: flex; flex-direction: column; gap: 5px; }
+.aps-template-fixed-row label { color: var(--aps-dim); font-size: 11px; }
+.aps-template-fixed-row textarea { width: 100%; min-height: 58px; resize: vertical; }
+.aps-template-result { margin: 8px 14px 14px; min-height: 120px; }
+.aps-saved-list { margin: 4px 0 8px 8px; padding-left: 8px; border-left: 1px solid var(--aps-line);
+  display: flex; flex-direction: column; gap: 4px; }
+.aps-saved-row { display: flex; align-items: center; gap: 6px; padding: 5px 7px;
+  border: 1px solid #2b3341; border-radius: 7px; background: #1c212b; cursor: pointer; }
+.aps-saved-row:hover { border-color: #4a5365; }
+.aps-saved-row .nm { flex: 1; min-width: 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aps-saved-row .dt { color: var(--aps-dim); font-size: 9px; }
+.aps-saved-row .del { border: 0; background: transparent; color: #8a94a6; cursor: pointer; }
+.aps-saved-row .del:hover { color: #ff9a9a; }
 .aps-views { flex: 1; min-height: 0; display: flex; }
 .aps-view { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .aps-view[hidden] { display: none; }
@@ -87,21 +129,16 @@ function ensureStudioStyles() {
 .aps-tray-head .n { color: var(--aps-dim); font-size: 11px; }
 .aps-tray-tools { display: flex; gap: 4px; margin-left: auto; }
 .aps-tray-list { flex: 1; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 5px; min-height: 120px; }
-.aps-sel { display: flex; gap: 5px; align-items: center; padding: 6px 7px; border-radius: 8px;
+.aps-sel { display: flex; gap: 6px; align-items: center; padding: 7px 8px; border-radius: 8px;
   border: 1px solid #2b3341; background: #1c212b; cursor: grab; }
 .aps-sel.dragging { opacity: .4; }
-.aps-sel.off { opacity: .55; }
-.aps-sel .grip { color: #6f7a8e; font-size: 11px; cursor: grab; }
-.aps-sel .idx { width: 20px; height: 20px; border-radius: 5px; background: #2a313d;
-  color: var(--aps-amber); display: inline-flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; flex: 0 0 auto; }
-.aps-sel .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.aps-sel .zh { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.aps-sel .en { font-size: 10px; color: var(--aps-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.aps-sel .ctl { display: flex; align-items: center; gap: 3px; }
-.aps-sel input[type="number"] { width: 52px; padding: 3px 4px; font-size: 10px; }
-.aps-sel .acts { display: flex; gap: 1px; flex-direction: column; }
-.aps-sel .acts button { padding: 1px 4px; font-size: 10px; border-radius: 4px; }
+.aps-sel .body { flex: 1; min-width: 0; }
+.aps-sel .en { display: block; font-size: 11px; color: var(--aps-text); line-height: 1.45;
+  white-space: normal; overflow-wrap: anywhere; }
+.aps-sel-del { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; border: 1px solid transparent;
+  border-radius: 5px; background: transparent; color: #7f8a9e; cursor: pointer; font-size: 13px;
+  line-height: 1; }
+.aps-sel-del:hover { color: #ff9a9a; border-color: #5a343a; background: #2a2024; }
 .aps-tray-empty { color: var(--aps-dim); text-align: center; padding: 30px 12px; font-size: 12px; line-height: 1.8; }
 .aps-tray-foot { flex: 0 0 auto; border-top: 1px solid var(--aps-line); padding: 8px 10px;
   display: flex; flex-direction: column; gap: 6px; background: #15181f; }
@@ -127,6 +164,41 @@ function ensureStudioStyles() {
 .aps-my-row .en { flex: 1; min-width: 0; font-size: 11px; }
 .aps-my-row .zh { color: var(--aps-dim); font-size: 11px; }
 .aps-ai { padding: 14px 18px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.aps-v6-view { overflow: auto; }
+.aps-v6-head { padding: 10px 12px; border-bottom: 1px solid var(--aps-line); display: flex;
+  align-items: center; gap: 8px; flex-wrap: wrap; flex: 0 0 auto; }
+.aps-v6-head .t { font-weight: 700; font-size: 13px; }
+.aps-v6-head .sub { color: var(--aps-dim); font-size: 11px; line-height: 1.6; }
+.aps-v6-body { flex: 1; overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.aps-v6-sec { border: 1px solid #2b3341; border-radius: 9px; background: #181d26; overflow: hidden; }
+.aps-v6-sec-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  background: #202631; border-bottom: 1px solid #2b3341; }
+.aps-v6-sec-head b { font-size: 12px; flex: 1; }
+.aps-v6-sec-head .k { color: var(--aps-dim); font-size: 10px; }
+.aps-v6-num { width: 62px; padding: 4px 5px; font-size: 11px; }
+.aps-v6-fields { padding: 8px 10px; display: grid; gap: 5px 12px;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); }
+.aps-v6-fld { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.aps-v6-fld span { flex: 1; min-width: 0; color: var(--aps-dim); font-size: 11px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aps-v6-fld input { width: 58px; padding: 3px 4px; font-size: 10px; }
+.aps-v6-levels { display: inline-flex; gap: 2px; flex: 0 0 auto; }
+.aps-v6-level { width: 22px; height: 22px; padding: 0; border: 1px solid #3a4352;
+  border-radius: 5px; background: #1a1f27; color: #8590a3; font-size: 10px;
+  cursor: pointer; font-family: inherit; }
+.aps-v6-level:hover { border-color: #68758a; color: var(--aps-text); }
+.aps-v6-level.on { background: #3a2e19; border-color: var(--aps-amber); color: var(--aps-amber2);
+  font-weight: 700; }
+.aps-v6-level[data-v="0"].on { background: #30202a; border-color: #8a4a5a; color: #e2a0ae; }
+.aps-prev-group { margin-bottom: 7px; }
+.aps-prev-title { color: var(--aps-amber2); font-size: 10px; font-weight: 700;
+  letter-spacing: .04em; margin-bottom: 3px; text-transform: none; }
+.aps-prev-tags { color: var(--aps-text); line-height: 1.7; word-break: break-word; }
+.aps-v6-switches { display: flex; gap: 10px; flex-wrap: wrap; padding: 9px 10px;
+  border: 1px solid #2b3341; border-radius: 9px; background: #181d26; }
+.aps-v6-note { color: var(--aps-dim); font-size: 11px; line-height: 1.7; padding: 0 2px; }
+.aps-v6full-host { flex: 1; min-width: 0; min-height: 0; position: relative; display: flex;
+  overflow: hidden; background: #121419; }
 .aps-ai-card { border: 1px solid var(--aps-line); border-radius: 10px; padding: 12px;
   background: #1a1f27; }
 .aps-ai-card h4 { margin: 0 0 8px; font-size: 13px; }
@@ -170,7 +242,6 @@ function parseStudio(node) {
     extra_text: raw.extra_text || "",
     negative_preset: raw.negative_preset || "standard",
     negative_extra: raw.negative_extra || "",
-    lora: Array.isArray(raw.lora) ? raw.lora : [],
     ui: raw.ui && typeof raw.ui === "object" ? raw.ui : {},
   };
 }
@@ -213,6 +284,15 @@ function loadPresets() {
 function savePresets(rows) {
   localStorage.setItem(PRESET_KEY, JSON.stringify(rows));
 }
+function loadWeightLibs() {
+  try {
+    const rows = JSON.parse(localStorage.getItem(WEIGHT_LIB_KEY) || "[]");
+    return Array.isArray(rows) ? rows : [];
+  } catch (_e) { return []; }
+}
+function saveWeightLibs(rows) {
+  localStorage.setItem(WEIGHT_LIB_KEY, JSON.stringify(rows));
+}
 
 function pushHistory(text) {
   if (!text) return;
@@ -228,7 +308,7 @@ export function openStudio(node) {
   ensureStylesStudio();
   const st = parseStudio(node);
   const modal = new Modal({
-    title: "anima-word · 提示词工坊 · 自由选择",
+    title: "anima-word · 提示词工坊",
     width: "min(1560px, 97vw)", height: "min(94vh, 1020px)",
   });
   modal.body.classList.add("aps-studio-body");
@@ -242,17 +322,20 @@ export function openStudio(node) {
     </aside>
     <main class="aps-main">
       <div class="aps-subtabs">
-        <button class="aps-subtab on" data-tab="catalog">🧩 自由选择</button>
-        <button class="aps-subtab" data-tab="lora">🔗 LoRA</button>
-        <button class="aps-subtab" data-tab="my">⭐ 我的 Tag</button>
-        <button class="aps-subtab" data-tab="preset">💾 预设 / 历史</button>
-        <button class="aps-subtab" data-tab="ai">🤖 AI（预留）</button>
+        <button class="aps-subtab on" data-tab="weights">权重库</button>
+        <button class="aps-subtab" data-tab="prompts">提示词</button>
+        <button class="aps-subtab" data-tab="preset">预设</button>
+      </div>
+      <div class="aps-prompt-tabs" hidden>
+        <button class="aps-ptab on" data-ptab="template">模板</button>
+        <button class="aps-ptab" data-ptab="general">通用</button>
       </div>
       <div class="aps-views">
-        <section class="aps-view" data-view="catalog">
+        <section class="aps-view" data-view="catalog" hidden>
           <div class="aps-cat-head">
             <div class="aps-cat-title"><span class="nm">全部</span><span class="n"></span></div>
             <span class="grow"></span>
+            <button class="aps-btn small ghost aps-open-my" title="管理我的 Tag">⭐ 我的 Tag</button>
             <label class="aps-check"><input type="checkbox" class="aps-only-sfw"> 只显示 SFW</label>
             <select class="aps-select aps-src">
               <option value="">全部来源</option>
@@ -266,12 +349,20 @@ export function openStudio(node) {
           <div class="aps-grid"></div>
           <div class="aps-grid-more"><button class="aps-btn ghost">加载更多</button></div>
         </section>
-        <section class="aps-view" data-view="lora" hidden>
-          <div style="flex:1;min-height:0;padding:10px 12px;display:flex" class="aps-lora-mount"></div>
-          <div class="aps-hint" style="padding:0 12px 10px">
-            这里的顺序会写进节点第 6 个输出 <b>lora_json</b>；把「Anima 多 LoRA 加载器（可排序）」的
-            <b>lora_list_json</b> 右键转成输入后连上即可。数组顺序 = 实际加载顺序。
+        <section class="aps-view" data-view="template" hidden>
+          <div class="aps-template-head">
+            <div>
+              <div class="t">模板 · V6 原版</div>
+              <div class="sub">这里只控制 V6 模板；权重库和随机只作用于这一页。</div>
+            </div>
+            <span class="grow"></span>
+            <button class="aps-btn primary aps-template-random">随机模板</button>
           </div>
+          <div class="aps-template-fixed-row">
+            <label>固定描述（随机时保留）</label>
+            <textarea class="aps-input aps-template-fixed" placeholder="例如：雨夜街头，回眸，霓虹灯…"></textarea>
+          </div>
+          <div class="aps-template-result aps-code">还没有生成模板。</div>
         </section>
         <section class="aps-view" data-view="my" hidden>
           <div class="aps-my-head">
@@ -282,6 +373,7 @@ export function openStudio(node) {
             </select>
             <button class="aps-btn primary aps-my-add">＋ 添加</button>
             <button class="aps-btn ghost aps-my-from-sel">把当前手选存为我的 Tag</button>
+            <button class="aps-btn ghost aps-my-back">返回通用</button>
           </div>
           <div class="aps-my-list"></div>
         </section>
@@ -294,6 +386,21 @@ export function openStudio(node) {
             <span class="aps-hint">预设存在浏览器 localStorage，不跟工作流走</span>
           </div>
           <div class="aps-preset-list"></div>
+        </section>
+        <section class="aps-view" data-view="v6" hidden>
+          <div class="aps-v6-head">
+            <div>
+              <div class="t">权重库</div>
+              <div class="sub">控制模板抽词概率。0 = 不出现，5 = 必定出现；1–4 概率依次递增。</div>
+            </div>
+            <span class="grow"></span>
+            <button class="aps-btn small ghost aps-save-weights">保存当前权重</button>
+            <button class="aps-btn small ghost aps-v6-reset">恢复默认</button>
+          </div>
+          <div class="aps-v6-body"></div>
+        </section>
+        <section class="aps-view" data-view="v6full" hidden>
+          <div class="aps-v6full-host"></div>
         </section>
         <section class="aps-view" data-view="ai" hidden>
           <div class="aps-ai"></div>
@@ -318,12 +425,16 @@ export function openStudio(node) {
         </div>
       </div>
       <div class="aps-tray-foot">
-        <div class="aps-tray-row"><span class="k">模式</span>
+        <div class="aps-tray-row aps-mode-row"><span class="k">模式</span>
           <div class="aps-mode">
             <button data-mode="manual">手选</button>
             <button data-mode="hybrid">混合</button>
             <button data-mode="random">随机</button>
           </div>
+        </div>
+        <div class="aps-tray-row aps-random-each-row" style="display:none"><span class="k">随机</span>
+          <label class="aps-check"><input type="checkbox" class="aps-random-each"> 每次任务随机</label>
+          <span class="aps-hint aps-random-each-hint"></span>
         </div>
         <div class="aps-tray-row"><span class="k">档位</span>
           <select class="aps-select aps-level">
@@ -376,10 +487,19 @@ export function openStudio(node) {
   const qEl = root.querySelector(".aps-q");
   const onlySfw = root.querySelector(".aps-only-sfw");
   const srcEl = root.querySelector(".aps-src");
-  const loraMount = root.querySelector(".aps-lora-mount");
   const aiEl = root.querySelector(".aps-ai");
   const myList = root.querySelector(".aps-my-list");
   const presetList = root.querySelector(".aps-preset-list");
+  const v6Body = root.querySelector(".aps-v6-body");
+  const v6Reset = root.querySelector(".aps-v6-reset");
+  const v6Open = root.querySelector(".aps-v6-open");
+  const sideEl = root.querySelector(".aps-side");
+  const sideSearch = root.querySelector(".aps-side-search");
+  const promptTabs = root.querySelector(".aps-prompt-tabs");
+  const ptabEls = root.querySelectorAll(".aps-ptab");
+  const templateFixed = root.querySelector(".aps-template-fixed");
+  const templateResult = root.querySelector(".aps-template-result");
+  const saveWeightsBtn = root.querySelector(".aps-save-weights");
 
   const ui = {
     cat: st.ui.cat || "__all__",
@@ -393,10 +513,17 @@ export function openStudio(node) {
     preview: null,
     meta: null,
     my: [],
-    loraEditor: null,
+    v6: { contract: null, weights: null, loading: false },
+    lastSeed: null,
+    tab: st.ui.tab || "weights",
+    ptab: st.ui.ptab || "template",
+    savedOpen: !!st.ui.savedOpen,
+    weightLibs: loadWeightLibs(),
   };
 
   const randomBtn = root.querySelector(".aps-random");
+  st.ui = (st.ui && typeof st.ui === "object") ? st.ui : {};
+  templateFixed.value = st.ui.template_fixed || "";
   function syncRandomBtn() {
     const scene = SCENE_CATS.has(ui.cat);
     randomBtn.textContent = scene ? "🎲 随机场景" : "🎲 随机一条";
@@ -411,13 +538,38 @@ export function openStudio(node) {
     root.querySelectorAll(".aps-mode button").forEach((b) => {
       b.classList.toggle("on", b.dataset.mode === st.mode);
     });
+    const modeEl = root.querySelector(".aps-mode");
+    const modeRow = root.querySelector(".aps-mode-row");
+    const isGeneral = ui.tab === "prompts" && ui.ptab === "general";
+    if (modeEl) modeEl.style.display = isGeneral ? "none" : "";
+    if (modeRow) modeRow.style.display = isGeneral ? "none" : "";
     modal.setTitle(`anima-word · 提示词工坊 · ${MODE_LABEL[st.mode] || st.mode}`);
   };
+  const randomEachEl = root.querySelector(".aps-random-each");
+  const randomEachRow = root.querySelector(".aps-random-each-row");
+  const randomEachHint = root.querySelector(".aps-random-each-hint");
+  const seedWidget = widget(node, "seed");
+
+  function syncRandomEach() {
+    const isRandom = st.mode === "random";
+    const isGeneral = ui.tab === "prompts" && ui.ptab === "general";
+    randomEachRow.style.display = (isRandom && !isGeneral) ? "" : "none";
+    const seed = Number(wval(node, "seed", -1));
+    const each = Number.isFinite(seed) && seed < 0;
+    randomEachEl.checked = each;
+    randomEachEl.disabled = !seedWidget;
+    const v6Each = root.querySelector(".aps-v6-random-each");
+    if (v6Each) { v6Each.checked = each; v6Each.disabled = !seedWidget; }
+    randomEachHint.textContent = !seedWidget
+      ? "当前节点没有 seed 控件"
+      : (each ? "每次执行都会重新抽词" : "当前是固定种子");
+  }
+  syncRandomEach();
   syncMode();
   root.querySelectorAll(".aps-mode button").forEach((b) => {
     b.onclick = () => {
       st.mode = b.dataset.mode;
-      syncMode(); persist();
+      syncMode(); syncRandomEach(); persist();
     };
   });
   root.querySelector(".aps-level").value = wval(node, "nsfw_level", "sfw");
@@ -429,6 +581,24 @@ export function openStudio(node) {
   root.querySelector(".aps-order").onchange = (e) => {
     st.order = e.target.value; persist(); renderTray();
   };
+
+  function setRandomEach(on) {
+    if (!seedWidget) return;
+    if (on) {
+      const cur = Number(seedWidget.value);
+      if (Number.isFinite(cur) && cur >= 0) ui.lastSeed = cur;
+      wset(node, "seed", -1);
+      toast("已开启：每次任务随机（seed = -1）", "ok");
+    } else {
+      const fixed = (ui.lastSeed != null && ui.lastSeed >= 0)
+        ? ui.lastSeed : Math.floor(Math.random() * 2147483647);
+      wset(node, "seed", fixed);
+      toast(`已改为固定种子：${fixed}`, "ok");
+    }
+    app.graph?.setDirtyCanvas(true, true);
+    syncRandomEach();
+  }
+  randomEachEl.onchange = () => setRandomEach(randomEachEl.checked);
   root.querySelector(".aps-qprefix").value = st.quality_prefix;
   root.querySelector(".aps-qprefix").onchange = (e) => {
     st.quality_prefix = e.target.value; persist();
@@ -454,7 +624,7 @@ export function openStudio(node) {
     { key: "__fav__", label: "⭐ 我的收藏", count: 0 },
     { key: "__recent__", label: "🕘 最近使用", count: 0 },
   ];
-  const renderSide = () => {
+  const renderCatalogSide = () => {
     const meta = ui.meta;
     if (!meta) return;
     const parts = [];
@@ -473,16 +643,165 @@ export function openStudio(node) {
         ui.cat = el.dataset.cat;
         st.ui.cat = ui.cat;
         persist();
-        renderSide();
+        renderCatalogSide();
         loadCatalog(true);
       };
     });
   };
 
+  function applyWeightLibrary(lib) {
+    if (!lib || !lib.weights) return;
+    ui.v6.weights = JSON.parse(JSON.stringify(lib.weights));
+    saveV6Weights(ui.v6.weights);
+    renderV6();
+    toast(`已载入权重库「${lib.name || "未命名"}」`, "ok");
+  }
+
+  const renderSavedSide = () => {
+    const rows = ui.weightLibs || [];
+    sideList.innerHTML = `
+      <div class="aps-side-group">
+        <div class="aps-side-item ${ui.savedOpen ? "on" : ""}" data-role="saved">
+          <span>已保存的权重</span><span class="c">${rows.length}</span>
+        </div>
+        ${ui.savedOpen ? `<div class="aps-saved-list">${
+          rows.length ? rows.map((lib, i) => `
+            <div class="aps-saved-row" data-lib="${i}">
+              <span class="nm" title="${esc(lib.name || "")}">${esc(lib.name || `权重库 ${i + 1}`)}</span>
+              <span class="dt">${new Date(lib.at || Date.now()).toLocaleDateString()}</span>
+              <button class="del" type="button" data-lib-del="${i}" title="删除">✕</button>
+            </div>`).join("") : `<div class="aps-empty" style="padding:8px">还没有保存的权重</div>`
+        }</div>` : ""}
+      </div>`;
+    sideList.querySelector('[data-role="saved"]').onclick = () => {
+      ui.savedOpen = !ui.savedOpen;
+      st.ui.savedOpen = ui.savedOpen;
+      persist();
+      renderSavedSide();
+    };
+    sideList.querySelectorAll(".aps-saved-row").forEach((el) => {
+      el.onclick = () => applyWeightLibrary(ui.weightLibs[+el.dataset.lib]);
+      const del = el.querySelector("[data-lib-del]");
+      if (del) del.onclick = (ev) => {
+        ev.stopPropagation();
+        ui.weightLibs.splice(+el.dataset.lib, 1);
+        saveWeightLibs(ui.weightLibs);
+        renderSavedSide();
+      };
+    });
+  };
+
+  const renderSide = () => {
+    const isWeights = ui.tab === "weights";
+    const isGeneral = ui.tab === "prompts" && ui.ptab === "general";
+    root.classList.toggle("no-side", !(isWeights || isGeneral));
+    sideSearch.style.display = isGeneral ? "" : "none";
+    if (isWeights) {
+      renderSavedSide();
+    } else if (isGeneral) {
+      renderCatalogSide();
+    } else {
+      sideList.innerHTML = "";
+    }
+  };
+
+  function showView(name) {
+    for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
+  }
+
+  function setTab(tab) {
+    ui.tab = tab;
+    st.ui.tab = tab;
+    root.querySelectorAll(".aps-subtab").forEach((b) => {
+      b.classList.toggle("on", b.dataset.tab === tab);
+    });
+    const isPrompts = tab === "prompts";
+    promptTabs.hidden = !isPrompts;
+    if (tab === "weights") {
+      showView("v6");
+      loadV6();
+    } else if (tab === "prompts") {
+      if (ui.ptab === "general") {
+        st.mode = "manual";
+        syncMode();
+        syncRandomEach();
+        showView("catalog");
+        loadCatalog(true);
+      } else {
+        showView("template");
+        syncMode();
+      }
+    } else if (tab === "preset") {
+      showView("preset");
+      renderPresets();
+    }
+    root.classList.toggle("no-tray", !(tab === "prompts" && ui.ptab === "general"));
+    root.classList.toggle("no-side", !(tab === "weights" ||
+      (tab === "prompts" && ui.ptab === "general")));
+    renderSide();
+    persist();
+  }
+
+  function setPromptTab(ptab) {
+    ui.ptab = ptab;
+    st.ui.ptab = ptab;
+    ptabEls.forEach((b) => b.classList.toggle("on", b.dataset.ptab === ptab));
+    setTab("prompts");
+  }
+
+  async function randomTemplate() {
+    const btn = root.querySelector(".aps-template-random");
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = "生成中…";
+    try {
+      const fixed = String(st.ui.template_fixed || "").trim();
+      const extra = [st.extra_text, fixed].map((x) => String(x || "").trim())
+        .filter(Boolean).join(", ");
+      const temp = { ...st, mode: "random", extra_text: extra };
+      const res = await postJSON("/compose", {
+        studio_json: JSON.stringify(temp), widgets: widgetsOf(node),
+      });
+      st.ui.template_last = res.text || "";
+      templateResult.textContent = res.text || "（空）";
+      persist();
+    } catch (e) {
+      toast(`模板生成失败：${e.message}`, "err", 4000);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "随机模板";
+    }
+  }
+
+  templateFixed.onchange = () => {
+    st.ui.template_fixed = templateFixed.value;
+    persist();
+  };
+  templateResult.textContent = st.ui.template_last || "还没有生成模板。";
+  root.querySelector(".aps-template-random").onclick = randomTemplate;
+  if (saveWeightsBtn) saveWeightsBtn.onclick = () => {
+    const name = prompt("权重库名称：", `权重库 ${ui.weightLibs.length + 1}`);
+    if (!name) return;
+    ui.weightLibs.unshift({ name, weights: readV6Weights(), at: Date.now() });
+    saveWeightLibs(ui.weightLibs);
+    ui.savedOpen = true;
+    st.ui.savedOpen = true;
+    renderSavedSide();
+    toast(`已保存权重库「${name}」`, "ok");
+  };
+
+  root.querySelector(".aps-open-my").onclick = () => {
+    promptTabs.hidden = true;
+    root.classList.add("no-side", "no-tray");
+    showView("my");
+    loadMy();
+  };
+  root.querySelector(".aps-my-back").onclick = () => setPromptTab("general");
+
   fetchJSON("/catalog/meta").then((meta) => {
     ui.meta = meta;
     renderSide();
-    loadCatalog(true);
+    if (ui.tab === "prompts" && ui.ptab === "general") loadCatalog(true);
   }).catch((e) => toast(`目录加载失败：${e.message}`, "err", 4000));
 
   /* ── 目录加载 ── */
@@ -622,29 +941,40 @@ export function openStudio(node) {
       const on = isSelected(it.id);
       const fav = favorites.has(it.id);
       const thumb = thumbURL(it.thumb);
+      const onlyDots = (v) => /^(?:\.+|…+)$/.test(String(v || "").trim());
+      const idHint = String(it.id || "").split(":").pop().replace(/[|_]+/g, " ").trim();
+      const rawZh = String(it.zh || "").trim();
+      const rawEn = String(it.en || "").trim();
+      const zh = (!rawZh || onlyDots(rawZh)) ? (rawEn && !onlyDots(rawEn) ? rawEn : idHint) : rawZh;
+      const en = (!rawEn || onlyDots(rawEn)) ? zh : rawEn;
       return `<div class="aps-card ${on ? "on" : ""}" data-id="${esc(it.id)}">
         ${thumb ? `<div class="aps-card-thumb"><img loading="lazy" src="${esc(thumb)}" onerror="this.parentElement.style.display='none'"></div>` : ""}
         <div class="aps-card-main">
-          <div class="aps-card-zh">${esc(it.zh)}</div>
-          <div class="aps-card-en">${esc(it.en)}</div>
+          <div class="aps-card-zh" title="${esc(zh)}">${esc(zh)}</div>
+          <div class="aps-card-en" title="${esc(en)}">${esc(en)}</div>
           <div class="aps-card-tags">
             <span class="aps-badge">${esc(SLOT_LABEL[it.slot] || it.slot)}</span>
             ${it.level ? `<span class="aps-badge lv${it.level}">L${it.level}</span>` : ""}
             <span class="aps-badge src">${esc(it.src)}</span>
           </div>
         </div>
-        <button class="aps-card-star" data-star="1" title="收藏">${fav ? "★" : "☆"}</button>
+        <button type="button" class="aps-card-star" data-star="1" title="收藏">${fav ? "★" : "☆"}</button>
         <div class="aps-card-side">${on ? "✓" : "＋"}</div>
       </div>`;
     }).join("");
     grid.querySelectorAll(".aps-card").forEach((el) => {
       const it = ui.list.find((x) => x.id === el.dataset.id);
+      const star = el.querySelector(".aps-card-star");
+      if (star) {
+        star.onpointerdown = (ev) => ev.stopPropagation();
+        star.onclick = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          toggleFav(it, star);
+        };
+      }
       el.onclick = (e) => {
-        if (e.target.dataset.star) {
-          e.stopPropagation();
-          toggleFav(it, el.querySelector(".aps-card-star"));
-          return;
-        }
+        if (e.target.closest && e.target.closest(".aps-card-star")) return;
         toggleItem(it);
       };
     });
@@ -677,45 +1007,25 @@ export function openStudio(node) {
   }
 
   function renderTray() {
-    const onN = st.items.filter((x) => x.on !== false).length;
-    trayN.textContent = `${st.items.length} 条 · 启用 ${onN}`;
+    trayN.textContent = `${st.items.length} 条`;
     const rows = sortedItems();
     if (!rows.length) {
       trayList.innerHTML = `<div class="aps-tray-empty">还没有手选标签<br>点中间卡片右上角的「＋」加入</div>`;
       return;
     }
+    // 1.0.5：托盘只留提示词正文；权重/启用/上下移不再塞进这一列。
+    // 排序仍可用整行拖拽，删除放在行尾的小按钮。
     trayList.innerHTML = rows.map((it, i) => `
-      <div class="aps-sel ${it.on === false ? "off" : ""}" draggable="true" data-id="${esc(it.id)}" data-i="${i}">
-        <span class="grip">⋮⋮</span>
-        <span class="idx">${i + 1}</span>
+      <div class="aps-sel" draggable="true" data-id="${esc(it.id)}" data-i="${i}">
         <div class="body">
-          <div class="zh" title="${esc(it.zh)}">${esc(it.zh)}</div>
-          <div class="en" title="${esc(it.en)}">${esc(it.en)}</div>
+          <div class="en" title="${esc(it.zh ? it.zh + " · " : "")}${esc(it.en)}">${esc(it.en || it.zh || it.id)}</div>
         </div>
-        <div class="ctl">
-          <input type="checkbox" data-k="on" ${it.on === false ? "" : "checked"} title="启用">
-          <input type="number" class="aps-input" data-k="w" min="0.1" max="3" step="0.05" value="${it.w ?? 1}" title="权重">
-        </div>
-        <div class="acts">
-          <button class="aps-btn small ghost" data-act="up">↑</button>
-          <button class="aps-btn small ghost" data-act="down">↓</button>
-          <button class="aps-btn small danger" data-act="del">✕</button>
-        </div>
+        <button type="button" class="aps-sel-del" data-act="del" title="从托盘移除">✕</button>
       </div>`).join("");
     trayList.querySelectorAll(".aps-sel").forEach((el) => {
       const id = el.dataset.id;
-      const i = +el.dataset.i;
-      const it = st.items.find((x) => x.id === id);
-      el.querySelectorAll("[data-k]").forEach((inp) => {
-        inp.onchange = () => {
-          if (inp.dataset.k === "on") it.on = inp.checked;
-          if (inp.dataset.k === "w") it.w = Math.max(0.1, Math.min(3, +inp.value || 1));
-          persist(); renderTray(); renderGrid();
-        };
-      });
-      el.querySelector('[data-act="up"]').onclick = () => moveCustom(id, -1);
-      el.querySelector('[data-act="down"]').onclick = () => moveCustom(id, 1);
-      el.querySelector('[data-act="del"]').onclick = () => {
+      el.querySelector('[data-act="del"]').onclick = (ev) => {
+        ev.stopPropagation();
         st.items.splice(st.items.findIndex((x) => x.id === id), 1);
         persist(); renderTray(); renderGrid();
       };
@@ -759,6 +1069,29 @@ export function openStudio(node) {
     toast("手选托盘已清空");
   };
 
+  function renderPreviewText(res) {
+    const pos = previewEl.querySelector(".pos");
+    const items = st.items || [];
+    if (!items.length) {
+      pos.textContent = res.text || "（空）";
+      return;
+    }
+    const order = ["character", "appearance", "clothing", "pose", "artist",
+      "camera", "scene", "lighting", "quality", "other"];
+    const groups = new Map();
+    for (const it of items) {
+      const slot = order.includes(it.slot) ? it.slot : "other";
+      if (!groups.has(slot)) groups.set(slot, []);
+      groups.get(slot).push(it.en || it.zh || it.id);
+    }
+    const html = order.filter((slot) => groups.has(slot)).map((slot) => `
+      <div class="aps-prev-group">
+        <div class="aps-prev-title">${esc(SLOT_LABEL[slot] || "其他")}</div>
+        <div class="aps-prev-tags">${esc(groups.get(slot).join(", "))}</div>
+      </div>`).join("");
+    pos.innerHTML = html || esc(res.text || "（空）");
+  }
+
   /* ── 预览 / 写回 ── */
   async function preview() {
     const btn = root.querySelector(".aps-preview-btn");
@@ -770,7 +1103,7 @@ export function openStudio(node) {
       });
       ui.preview = res;
       previewEl.style.display = "";
-      previewEl.querySelector(".pos").textContent = res.text || "（空）";
+      renderPreviewText(res);
       previewEl.querySelector(".neg").textContent = res.negative || "（无）";
       previewEl.querySelector(".meta").textContent =
         `${res.level_label} · ${res.counts ? JSON.stringify(res.counts) : ""}`;
@@ -794,37 +1127,179 @@ export function openStudio(node) {
   root.querySelector(".aps-copy-neg").onclick = () =>
     copyText(ui.preview?.negative || previewEl.querySelector(".neg").textContent || "");
 
-  /* ── 子页签 ── */
+  /* ── V6 权重 / 随机（合并进工坊） ─────────────────────────────── */
+  function readV6Weights() {
+    let raw = {};
+    try { raw = JSON.parse(wval(node, "weights_json", "") || "{}"); } catch (_e) { raw = {}; }
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) raw = {};
+    for (const k of ["sections", "fields", "options"]) {
+      if (!raw[k] || typeof raw[k] !== "object" || Array.isArray(raw[k])) raw[k] = {};
+    }
+    return raw;
+  }
+
+  function saveV6Weights(w) {
+    wset(node, "weights_json", JSON.stringify(w, null, 1));
+    app.graph?.setDirtyCanvas(true, true);
+  }
+
+  function v6Weight(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.max(0, Math.min(5, n)) : 1;
+  }
+
+  const V6_LEVEL_TIPS = {
+    0: "不出现", 1: "偶尔出现", 2: "偏低", 3: "默认", 4: "偏高", 5: "必定出现",
+  };
+
+  function v6Levels(kind, key, value, sec) {
+    const val = v6Weight(value);
+    const attrs = kind === "field"
+      ? `data-v6-field="${esc(key)}" data-v6-sec="${esc(sec || "")}"`
+      : `data-v6-section="${esc(key)}"`;
+    return `<span class="aps-v6-levels">${[0, 1, 2, 3, 4, 5].map((n) => `
+      <button type="button" class="aps-v6-level ${n === val ? "on" : ""}"
+        ${attrs} data-v6-val="${n}"
+        title="${n} 档：${V6_LEVEL_TIPS[n]}">${n}</button>`).join("")}</span>`;
+  }
+
+  function renderV6() {
+    const c = ui.v6.contract;
+    const w = ui.v6.weights || readV6Weights();
+    ui.v6.weights = w;
+    if (!c) {
+      v6Body.innerHTML = `<div class="aps-empty">V6 权重数据还没加载</div>`;
+      return;
+    }
+    const switches = [
+      ["role_pick", "不指定角色（只按词库权重抽特征）"],
+      ["scene_pick", "随机场景（按当前档位抽一条场景搭配）"],
+      ["role_fav_only", "只从收藏选角"],
+    ].map(([key, label]) => `<label class="aps-check"><input type="checkbox" data-v6-switch="${key}"> ${label}</label>`).join("");
+    const sections = (c.sections || []).map((sec) => {
+      const sv = v6Weight(w.sections[sec.id] ?? 1);
+      const fields = (sec.fields || []).map((f) => `
+        <div class="aps-v6-fld"><span title="${esc(f.lab)}">${esc(f.lab)}</span>
+          ${v6Levels("field", f.key, w.fields[f.key] ?? 1, sec.id)}
+        </div>`).join("");
+      return `<div class="aps-v6-sec" data-v6-sec="${esc(sec.id)}">
+        <div class="aps-v6-sec-head"><b>${esc(sec.title)}</b>
+          <span class="k">整段</span>
+          ${v6Levels("section", sec.id, sv)}</div>
+        <div class="aps-v6-fields">${fields}</div>
+      </div>`;
+    }).join("");
+    v6Body.innerHTML = `
+      <div class="aps-v6-note">权重会直接写回节点的 <code>weights_json</code>，
+        只控制模板抽词：0 = 不出现，1–4 概率依次递增，5 = 必定出现。
+        鼠标悬停在数字上可查看档位说明。</div>
+      <div class="aps-v6-switches">
+        ${switches}
+        <label class="aps-check"><input type="checkbox" class="aps-v6-random-each"> 每次任务随机（模板）</label>
+      </div>
+      ${sections || `<div class="aps-empty">V6 contract 里没有 sections</div>`}`;
+
+    v6Body.querySelectorAll("[data-v6-switch]").forEach((el) => {
+      el.checked = !!wval(node, el.dataset.v6Switch, false);
+      el.onchange = () => {
+        wset(node, el.dataset.v6Switch, !!el.checked);
+        app.graph?.setDirtyCanvas(true, true);
+      };
+    });
+    const v6Each = v6Body.querySelector(".aps-v6-random-each");
+    if (v6Each) v6Each.onchange = () => setRandomEach(v6Each.checked);
+    const mark = (el) => {
+      const group = el.parentElement;
+      group.querySelectorAll(".aps-v6-level").forEach((x) => x.classList.toggle("on", x === el));
+    };
+    v6Body.querySelectorAll("[data-v6-section][data-v6-val]").forEach((el) => {
+      el.onclick = () => {
+        w.sections[el.dataset.v6Section] = v6Weight(el.dataset.v6Val);
+        saveV6Weights(w);
+        mark(el);
+      };
+    });
+    v6Body.querySelectorAll("[data-v6-field][data-v6-val]").forEach((el) => {
+      el.onclick = () => {
+        w.fields[el.dataset.v6Field] = v6Weight(el.dataset.v6Val);
+        saveV6Weights(w);
+        mark(el);
+      };
+    });
+    syncRandomEach();
+  }
+
+  async function loadV6() {
+    if (ui.v6.loading) return;
+    ui.v6.loading = true;
+    try {
+      if (!ui.v6.contract) ui.v6.contract = await fetchJSON("/contract");
+      ui.v6.weights = readV6Weights();
+      renderV6();
+    } catch (e) {
+      toast(`V6 权重加载失败：${e.message}`, "err", 4000);
+    } finally {
+      ui.v6.loading = false;
+    }
+  }
+
+  async function mountV6Full() {
+    const host = root.querySelector(".aps-v6full-host");
+    if (!host || host.querySelector(".av3-mask")) return;
+    const fn = window.__animaWordMountV6Panel;
+    if (typeof fn !== "function") {
+      host.innerHTML = `<div class="aps-empty">V6 面板还没加载，刷新页面后再试</div>`;
+      return;
+    }
+    host.innerHTML = `<div class="aps-empty">正在加载完整 V6 面板…</div>`;
+    try {
+      await fn(node, host);
+    } catch (e) {
+      host.innerHTML = `<div class="aps-empty">V6 面板加载失败：${esc(e.message)}</div>`;
+    }
+  }
+
+  v6Reset.onclick = () => {
+    const w = readV6Weights();
+    w.sections = {};
+    w.fields = {};
+    w.options = {};
+    ui.v6.weights = w;
+    saveV6Weights(w);
+    renderV6();
+    toast("V6 权重已恢复默认（全部 1.0）", "ok");
+  };
+  if (v6Open) v6Open.onclick = () => {
+    const tab = root.querySelector('.aps-subtab[data-tab="v6full"]');
+    if (tab) tab.click();
+    else toast("V6 面板还没加载，刷新页面后再试", "err", 3500);
+  };
+
+  /* ── 顶部三页签 / 提示词子页签 ── */
   const views = {
     catalog: root.querySelector('[data-view="catalog"]'),
-    lora: root.querySelector('[data-view="lora"]'),
+    template: root.querySelector('[data-view="template"]'),
     my: root.querySelector('[data-view="my"]'),
     preset: root.querySelector('[data-view="preset"]'),
+    v6: root.querySelector('[data-view="v6"]'),
+    v6full: root.querySelector('[data-view="v6full"]'),
     ai: root.querySelector('[data-view="ai"]'),
   };
-  let loraLoaded = false;
   root.querySelectorAll(".aps-subtab").forEach((b) => {
-    b.onclick = () => {
-      root.querySelectorAll(".aps-subtab").forEach((x) => x.classList.toggle("on", x === b));
-      for (const [k, v] of Object.entries(views)) v.hidden = k !== b.dataset.tab;
-      if (b.dataset.tab === "lora" && !loraLoaded) {
-        loraLoaded = true;
-        ui.loraEditor = new LoraEditor({
-          mount: loraMount, entries: st.lora || [],
-          onChange: (json, entries) => { st.lora = entries; persist(); },
-        });
-      }
-      if (b.dataset.tab === "my") loadMy();
-      if (b.dataset.tab === "preset") renderPresets();
-      if (b.dataset.tab === "ai") loadAI();
-    };
+    b.onclick = () => setTab(b.dataset.tab);
   });
+  ptabEls.forEach((b) => {
+    b.onclick = () => setPromptTab(b.dataset.ptab);
+  });
+  if (!["weights", "prompts", "preset"].includes(ui.tab)) ui.tab = "weights";
+  if (!["template", "general"].includes(ui.ptab)) ui.ptab = "template";
+  ptabEls.forEach((b) => b.classList.toggle("on", b.dataset.ptab === ui.ptab));
 
   /* ── 我的 Tag ── */
   async function loadMy() {
     try {
       const res = await fetchJSON("/studio/my-tags");
-      ui.my = res.entries || [];
+      ui.my = res.entries || res.items || [];
       renderMy();
     } catch (e) { toast(`我的 Tag 读取失败：${e.message}`, "err"); }
   }
@@ -902,7 +1377,6 @@ export function openStudio(node) {
         st.extra_text = rec.extra_text || "";
         st.negative_preset = rec.negative_preset || "standard";
         st.negative_extra = rec.negative_extra || "";
-        st.lora = rec.lora || [];
         syncMode();
         root.querySelector(".aps-order").value = st.order;
         root.querySelector(".aps-qprefix").value = st.quality_prefix;
@@ -997,6 +1471,7 @@ export function openStudio(node) {
     }
   }
 
+  setTab(ui.tab);
   renderTray();
   // 关闭面板时立即落盘，避免 300ms debounce 与“关闭后马上排队”的竞态
   modal.onClose = () => saveStudio(node, st);
@@ -1137,6 +1612,10 @@ export function installNodeHooks(nodeType, nodeData) {
   nodeType.prototype.onNodeCreated = function () {
     const r = onCreated ? onCreated.apply(this, arguments) : undefined;
     if (isStudio) {
+      // 主节点控件显示名翻译；键名不变，面板与老工作流零影响。
+      for (const w of this.widgets || []) {
+        if (w && w.name && WIDGET_ZH[w.name]) w.label = WIDGET_ZH[w.name];
+      }
       hideWidget(this, "studio_json");
       // 手选状态由面板维护；节点上只保留模式与手写补充
       const mk = (text, tip, fn) => {

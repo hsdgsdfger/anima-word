@@ -30,6 +30,43 @@ except ImportError:  # 独立测试环境
 
 _CHANGED_TICK = itertools.count()
 
+# 主节点 UI 文案。键名保持英文（工作流 / 面板按名读写），只翻译显示名；
+# anima-word / Anima / V6 / LoRA / Danbooru / JSON 等专有名词保留。
+DISPLAY_NAMES = {
+    "nsfw_level": "画面档位",
+    "seed": "随机种子",
+    "tag_cap": "标签上限",
+    "base_prob": "基础抽取概率",
+    "disabled_sections": "禁用段",
+    "lock_fields": "锁定字段",
+    "force_role": "强制角色",
+    "weights_json": "权重数据",
+    "extra_body": "追加人物特征",
+    "appearance_follow": "角色外貌跟随",
+    "selected_roles": "已选角色",
+    "big_breasts": "巨乳（旧）",
+    "role_works": "限定作品",
+    "breast_size": "胸部大小",
+    "outfit_style": "服装风格",
+    "role_fav_only": "只从收藏选角",
+    "hair_follow": "官方发型跟随",
+    "hair_len_pick": "发型长度选择",
+    "hair_tie_pick": "发型束发选择",
+    "hair_curl_pick": "发型卷曲选择",
+    "hair_acc_pick": "发饰选择",
+    "role_pick": "抽取角色",
+    "scene_pick": "随机场景",
+    "dry_skin_filter": "皮肤干爽过滤",
+    "dry_skin_groups": "干爽过滤分组",
+    "dry_skin_tags": "干爽过滤标签",
+    "duo_role_fill": "双女自动补位",
+    "pick_pool_mode": "勾选池模式",
+    "pick_pool_ids": "勾选池编号",
+    "mode": "出词模式",
+    "studio_json": "工坊状态",
+    "manual_text": "手写补充",
+}
+
 
 def _json(raw, default):
     try:
@@ -69,10 +106,24 @@ class AnimaPromptStudio(V6.AnimaV4RandomPrompt):
             {"default": "", "multiline": True,
              "tooltip": "额外手写补充，按逗号拼进正文"},
         )
+        # 只翻译显示名，不动控件键名；老工作流与面板读写不受影响。
+        for _section, _fields in out.items():
+            if not isinstance(_fields, dict):
+                continue
+            for _key, _spec in list(_fields.items()):
+                if _key not in DISPLAY_NAMES:
+                    continue
+                if not (isinstance(_spec, (tuple, list)) and len(_spec) >= 2):
+                    continue
+                if not isinstance(_spec[1], dict):
+                    continue
+                _cfg = dict(_spec[1])
+                _cfg.setdefault("display_name", DISPLAY_NAMES[_key])
+                out[_section][_key] = tuple([_spec[0], _cfg] + list(_spec[2:]))
         return out
 
-    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING", "STRING")
-    RETURN_NAMES = ("text", "report", "level", "cn_summary", "negative", "lora_json")
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("提示词", "报告", "档位", "中文摘要", "负面词")
     FUNCTION = "generate"
     CATEGORY = V6.SECTION_NAME
 
@@ -112,8 +163,7 @@ class AnimaPromptStudio(V6.AnimaV4RandomPrompt):
             print(f"[anima-word] 元数据注入失败（不影响出图）: {exc}")
 
         return (res["text"], res["report_text"], res["level_label"],
-                res["cn_summary"], res.get("negative", ""),
-                json.dumps(st.get("lora") or [], ensure_ascii=False))
+                res["cn_summary"], res.get("negative", ""))
 
 
 class AnimaPromptStudioEncode:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Comfyui-Anima-Wardrobe-V6 :: 把插件产出的正文写进 PNG 元数据（v3.6.0 新增模块）
+"""anima-word :: 把 V6 正文转换后写进 PNG 元数据（内部模块）
 
 作者：灵冻不冻 ｜ 插件底层框架源于脚本：ANIMA提示词生成器.html 已授权开源 —— 作者：飞蓬。
 
@@ -39,12 +39,12 @@ SaveImage 是在**自己执行的那一刻**才 `json.dumps(extra_pnginfo["workf
 
 
 【写哪三个落点（与用户确认过的口径：分位置写真值）】
-  ① 承载位 —— 顺着连线往下，正文真正流经的那些文本控件，写**正文原值**
+  ① 承载位 —— 顺着连线往下，正文真正流经的那些文本控件，写**转换后的真正提示词**
      （CR Text 的 text、StringConcatenate 里接收正文的那个 string_a/string_b）；
   ② 终点位 —— 喂给采样器 `positive` 的 CLIPTextEncode.text，写**尽力还原的完整正向**
      （该流质量词 + 正文；中间若有第三方节点（如 LoraManager 触发词）运行时才有值，
       插件无从得知，按空串处理）；
-  ③ 兜底位 —— 链上其它文本节点里**当前为空**的文本位，也填上**正文原值**。
+  ③ 兜底位 —— 链上其它文本节点里**当前为空**的文本位，也填上**转换后的真正提示词**。
      ⚠️ 只填**空位**，绝不覆盖任何已有字面量（不篡改用户写死的质量词）。
   ④ 上游拼接位（v3.7.0 追加）—— 正向上游链路上 `StringConcatenate` 里**已有字面量**
      的 `widgets_values[0]`（string_a），改写成**这条链的完整正向**（质量词 + 正文）。
@@ -57,8 +57,9 @@ SaveImage 是在**自己执行的那一刻**才 `json.dumps(extra_pnginfo["workf
 
 另外写一个**专用 tEXt 键** `anima_v4_prompt`（往 extra_pnginfo 加一个顶层键，
 SaveImage 会照原生约定把它一起写进 PNG），内容是结构化 JSON：
-正文原值 + 尽力完整正向 + **配对的负向**（顺着采样器的 `negative` 输入读回来）。
-这样"读自定义键"的工具、以及我们自己排查，都有个明确入口。
+转换后的真正提示词 + V6 原文 `positive_raw` + 尽力完整正向 + 配对的负向
+（顺着采样器的 `negative` 输入读回来）。这样"读自定义键"的工具、以及我们自己
+排查，都有个明确入口。
 
 
 【安全边界（很重要，改这个文件前务必读完）】
@@ -73,6 +74,11 @@ SaveImage 会照原生约定把它一起写进 PNG），内容是结构化 JSON�
 
 import json
 
+try:
+    from . import prompt_decouple as PD
+except ImportError:  # 独立测试环境
+    import prompt_decouple as PD
+
 # 写进 API prompt 的惰性键名（执行的节点读不到它，见上面「安全边界」）
 INJECT_KEY = "anima_v4_prompt"
 # v4.0.0 改名兼容：旧图（以及用户自己的外部脚本/图库工具）读的是 `anima_v3_prompt`。
@@ -84,16 +90,22 @@ TEXT_KEY = "anima_v4_prompt"
 LEGACY_TEXT_KEY = "anima_v3_prompt"
 
 META_SCHEMA = "anima-v3/pngmeta@1"
+PROMPT_SCHEMA = "anima-word/prompt-decouple@1"
 
 
 # ---------------------------------------------------------------------------
 # 节点类型表
 # ---------------------------------------------------------------------------
 
-# 插件自己的节点：「正文」是第几个输出端口。AnimaV4RandomPrompt 的 RETURN_NAMES =
-# (text, report, level, cn_summary) → text 在 0。
+# 插件自己的节点：「正文」是第几个输出端口。
+# AnimaV4RandomPrompt / AnimaPromptStudio 的 text 都在 0。
 OWN_TEXT_OUTPUT_SLOT = {
+    "AnimaPromptStudio": 0,
+    "AnimaPromptStudioRandom": 0,
+    "AnimaV6RandomPrompt": 0,
+    "AnimaV5RandomPrompt": 0,
     "AnimaV4RandomPrompt": 0,
+    "AnimaV3RandomPrompt": 0,
 }
 
 # ⚠️ 故意**不**给插件节点配 OWN_TEXT_WIDGET：它的 widgets_values 前几位是
@@ -592,6 +604,39 @@ def inject_api_prompt(prompt, text, meta=None):
     return st
 
 
+def convert_prompt(text):
+    """默认把 V6 正文转成真正提示词；失败时原样回退，不影响出图。
+
+    这个入口不提供 UI、不新增节点输出，只被元数据写入流程内部调用。
+    """
+    raw = str(text or "").strip()
+    if not raw:
+        return {
+            "status": "empty", "prompt": "", "prompt_nl": "",
+            "negative": "", "cn": "", "error": "",
+        }
+    try:
+        d = PD.decouple(raw)
+        prompt = str(d.get("prompt") or raw).strip()
+        return {
+            "status": "ok",
+            "prompt": prompt,
+            "prompt_nl": str(d.get("prompt_nl") or ""),
+            "negative": str(d.get("negative") or ""),
+            "cn": str(d.get("cn") or ""),
+            "error": "",
+        }
+    except Exception as exc:  # pragma: no cover
+        return {
+            "status": "fallback",
+            "prompt": raw,
+            "prompt_nl": "",
+            "negative": "",
+            "cn": "",
+            "error": str(exc),
+        }
+
+
 def inject_metadata(extra_pnginfo, prompt, text, self_ids=frozenset(),
                     version=""):
     """节点侧的**唯一入口**：把正文写进 `workflow` 与 `prompt` 两处元数据。
@@ -601,14 +646,21 @@ def inject_metadata(extra_pnginfo, prompt, text, self_ids=frozenset(),
     · `self_ids` 是本插件节点 id（用于在图上认出自己）；
     · 两者都可能是 None（例如用 API 方式提交、没带 extra_data），此时静默跳过。
 
+    关键行为：写入前默认把 V6 正文解耦成真正提示词；`positive` 写转换结果，
+    `positive_raw` 保留 V6 原值。调用方的节点输出不变。
+
     ⚠️ 本函数**永不抛异常** —— 元数据写不进去是小事，把出图搞挂是大事。
     """
     text = str(text or "").strip()
-    st = {"workflow": None, "prompt": None, "meta": None}
+    conv = convert_prompt(text)
+    true_prompt = conv["prompt"]
+    st = {"workflow": None, "prompt": None, "meta": None,
+          "conversion": conv}
     wf_st = None
     try:
         if isinstance(extra_pnginfo, dict):
-            wf_st = inject_workflow_text(extra_pnginfo.get("workflow"), text, self_ids)
+            wf_st = inject_workflow_text(extra_pnginfo.get("workflow"),
+                                        true_prompt, self_ids)
             st["workflow"] = wf_st
     except Exception as e:                     # pragma: no cover
         wf_st = {"ok": False, "reason": "异常：%s" % e}
@@ -618,9 +670,21 @@ def inject_metadata(extra_pnginfo, prompt, text, self_ids=frozenset(),
         "schema": META_SCHEMA,
         "plugin": "anima-word",
         "version": version,
-        "positive": text,                       # 插件产出的正文**原值**
-        "positive_full": (wf_st or {}).get("positive", ""),   # 尽力还原的完整正向
-        "negative": (wf_st or {}).get("negative", ""),        # 配对读回的负向
+        "positive": true_prompt,                # 转换后的真正提示词
+        "positive_raw": text,                   # V6 正文原值
+        "positive_full": ((wf_st or {}).get("positive") or true_prompt),
+        "negative": ((wf_st or {}).get("negative") or conv["negative"]),
+        "prompt_nl": conv["prompt_nl"],
+        "prompt_negative": conv["negative"],
+        "conversion": {
+            "schema": PROMPT_SCHEMA,
+            "status": conv["status"],
+            "prompt": true_prompt,
+            "prompt_nl": conv["prompt_nl"],
+            "negative": conv["negative"],
+            "cn": conv["cn"],
+            "error": conv["error"],
+        },
         "written": len((wf_st or {}).get("written") or []),
         "workflow_ok": bool((wf_st or {}).get("ok")),
     }
@@ -632,7 +696,7 @@ def inject_metadata(extra_pnginfo, prompt, text, self_ids=frozenset(),
     except Exception:                               # pragma: no cover
         pass
     try:
-        st["prompt"] = inject_api_prompt(prompt, text, meta)
+        st["prompt"] = inject_api_prompt(prompt, true_prompt, meta)
     except Exception as e:                     # pragma: no cover
         st["prompt"] = {"ok": False, "reason": "异常：%s" % e}
     return st
@@ -685,6 +749,7 @@ def dump_workflow_prompt(workflow):
     return best
 
 
-__all__ = ["INJECT_KEY", "TEXT_KEY", "META_SCHEMA", "WIDGET_INDEX",
-           "inject_workflow_text", "inject_api_prompt", "inject_metadata",
-           "dump_workflow_prompt", "json"]
+__all__ = ["INJECT_KEY", "TEXT_KEY", "META_SCHEMA", "PROMPT_SCHEMA",
+           "WIDGET_INDEX", "convert_prompt", "inject_workflow_text",
+           "inject_api_prompt", "inject_metadata", "dump_workflow_prompt",
+           "json"]

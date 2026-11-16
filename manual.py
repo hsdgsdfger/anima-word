@@ -42,7 +42,6 @@ DEFAULT_STUDIO = {
     "extra_text": "",
     "negative_preset": "standard",
     "negative_extra": "",
-    "lora": [],
     "ui": {},
 }
 
@@ -103,8 +102,6 @@ def parse_studio(raw):
                 "negative_preset", "negative_extra"):
         if key in data:
             out[key] = data[key]
-    if isinstance(data.get("lora"), list):
-        out["lora"] = data["lora"]
     if isinstance(data.get("ui"), dict):
         out["ui"] = data["ui"]
     return out
@@ -146,7 +143,7 @@ def normalize_items(rows):
             w = float(row.get("w", 1.0))
         except (TypeError, ValueError):
             w = 1.0
-        w = max(0.1, min(3.0, w))
+        w = max(0.1, min(5.0, w))
         out.append({
             "id": str(row.get("id") or en),
             "cat": str(row.get("cat") or ""),
