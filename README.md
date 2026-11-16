@@ -1,4 +1,4 @@
-# Comfyui-Anima-Prompt-Studio · Anima 提示词工坊
+# anima-word · 提示词工坊
 
 一个**独立、自包含**的 ComfyUI 自定义节点包：把
 [Comfyui-Anima-Wardrobe-V6](https://github.com/lingdongbudong/Comfyui-Anima-Wardrobe-V6)
@@ -6,11 +6,15 @@
 [Comfyui-Anima-Tools](https://github.com/nregret/Comfyui-Anima-Tools)
 的素材库 / 多提示词框 / 多 LoRA 加载器合成一套面板。
 
-- 版本：`1.0.2`（V6 引擎内部版本 `7.0.0`）
+- 版本：`1.0.3`（V6 引擎内部版本 `7.0.0`）
 - 许可：GPL-3.0（因为内嵌 V6；详见 `LICENSE`、`THIRD_PARTY_NOTICES.md`）
 - 依赖：无第三方 Python 依赖；只要 ComfyUI 自带的 Python 环境
 - 真机验证：ComfyUI `0.45.3` / Python `3.13.12` / 前端 `1.58.5`
 
+> **1.0.3 更新（2026-11）**：对外插件名改为 `anima-word`；安装目录、GitHub 仓库、
+> zip 和面板标题同步。为了不破坏已有工作流，节点类名 `AnimaPromptStudio*` 和
+> 路由前缀 `/anima-prompt-studio` 保持不变。
+>
 > **1.0.2 更新（2026-11）**：目录页新增「🎲 随机一条 / 随机场景」按钮。当前分类
 > 是场景相关分类时自动变成「🎲 随机场景」，从整个分类随机抽取，不受首屏 60 条
 > 限制；支持搜索、来源、档位过滤，抽到的场景会直接进手选托盘。后端新增
@@ -86,18 +90,18 @@ V6 很强，但它是“随机抽一整段”；Anima-Tools 的素材很多，�
 
 ### 3.1 手动安装（推荐）
 
-把整个 `Comfyui-Anima-Prompt-Studio` 文件夹放进：
+把整个 `anima-word` 文件夹放进：
 
 ```text
-<你的 ComfyUI>/custom_nodes/Comfyui-Anima-Prompt-Studio
+<你的 ComfyUI>/custom_nodes/anima-word
 ```
 
 目录里应该能直接看到 `__init__.py`、`nodes_studio.py`、`js/`、`presets/`。
 然后重启 ComfyUI。启动日志里应出现：
 
 ```text
-[AnimaPromptStudio] v7.0.0 V6 路由已注册: ...
-[AnimaPromptStudio] 新路由已注册: catalog / compose / studio / loras / ai
+[anima-word] v7.0.0 V6 路由已注册: ...
+[anima-word] 新路由已注册: catalog / compose / studio / loras / ai
 ```
 
 浏览器打开 ComfyUI，右键画布 → `AnimaPromptStudio` 分类下能看到 11 个节点。
@@ -123,7 +127,7 @@ V6 很强，但它是“随机抽一整段”；Anima-Tools 的素材很多，�
 
 ### 3.3 卸载
 
-删除 `custom_nodes/Comfyui-Anima-Prompt-Studio`，重启。用户数据目录可保留，
+删除 `custom_nodes/anima-word`，重启。用户数据目录可保留，
 也可以手动删除。
 
 ### 3.4 LoRA 放哪里
@@ -220,17 +224,17 @@ AnimaPromptStudio
 
 | 节点类名 | 显示名 | 作用 |
 |---|---|---|
-| `AnimaPromptStudio` | Anima 提示词工坊 | 主节点，三模式 + 6 输出 |
-| `AnimaPromptStudioRandom` | Anima 随机提示词（V6） | 纯 V6 随机节点，保留 V6 全部控件 |
-| `AnimaPromptStudioGrader` | Anima 提示词体检 | V6 `PromptGrader` |
-| `AnimaPromptStudioMerge` | Anima 提示词拼装 | V6 `PromptAssemble` |
-| `AnimaPromptStudioRepair` | Anima 提示词修复 | V6 `PromptCheck` |
-| `AnimaPromptStudioEncode` | Anima CLIP 编码 | 正/负提示词一次编码成 CONDITIONING |
-| `AnimaPromptStudioBoxes` | Anima 多提示词框 | 多框开关/排序/去重/截断 |
-| `AnimaPromptStudioBoxesEncode` | Anima 多框编码 | 多框 + CLIP 一步到位 |
-| `AnimaPromptStudioSelector` | Anima 分类选择器 | 12 类素材的选择器，写入 `text` |
-| `AnimaLoraStack` | Anima 多 LoRA 加载器（可排序） | 有序数组逐项加载 |
-| `AnimaPromptStudioDanbooru` | Anima Danbooru 随机参考图（联网·可选） | 随机图 + 分组标签，来自 Tools |
+| `AnimaPromptStudio` | anima-word · 提示词工坊 | 主节点，三模式 + 6 输出 |
+| `AnimaPromptStudioRandom` | anima-word · 提示词随机生成（V6 引擎） | 纯 V6 随机节点，保留 V6 全部控件 |
+| `AnimaPromptStudioGrader` | anima-word · 提示词分级审查 | V6 `PromptGrader` |
+| `AnimaPromptStudioMerge` | anima-word · 提示词拼接台 | V6 `PromptAssemble` |
+| `AnimaPromptStudioRepair` | anima-word · 提示词检查与修复 | V6 `PromptCheck` |
+| `AnimaPromptStudioEncode` | anima-word · 提示词编码（CLIP） | 正/负提示词一次编码成 CONDITIONING |
+| `AnimaPromptStudioBoxes` | anima-word · 多提示词框 | 多框开关/排序/去重/截断 |
+| `AnimaPromptStudioBoxesEncode` | anima-word · 多提示词框编码（CLIP） | 多框 + CLIP 一步到位 |
+| `AnimaPromptStudioSelector` | anima-word · 标签选择器 | 12 类素材的选择器，写入 `text` |
+| `AnimaLoraStack` | anima-word · 多 LoRA 加载器（可排序） | 有序数组逐项加载 |
+| `AnimaPromptStudioDanbooru` | anima-word · Danbooru 随机参考图（联网·可选） | 随机图 + 分组标签，来自 Tools |
 
 ---
 
@@ -367,7 +371,7 @@ V6 路由示例：`/health` 返回 V6 引擎统计（15 段 / 57 字段 / 1134 �
 
 ```powershell
 E:\Game\ComfyUI-Installs\Anima模型\ComfyUI\.venv\Scripts\python.exe `
-  D:\Apps\99_Data\workbubby_Data\ComfyUI生图查看器\Comfyui-Anima-Prompt-Studio\tests\smoke_backend.py
+  D:\Apps\99_Data\workbubby_Data\ComfyUI生图查看器\anima-word\tests\smoke_backend.py
 ```
 
 覆盖：包加载、11 个节点、62,585 条目录、manual/hybrid/random 三种 compose、
@@ -404,7 +408,7 @@ cd E:\Game\ComfyUI-Installs\Anima模型\ComfyUI
   `catalog_total: 62585`、`catalog_cats: 31`、`loras: 21`；
 - `/catalog/meta`、`/catalog/items?cat=artist&limit=3`、`/loras`、`/ai/status`、
   `/health`、`/studio/favorites`、`POST /compose` 全部 200；
-- `/extensions/Comfyui-Anima-Prompt-Studio/studio.js` 200，52,441 bytes；
+- `/extensions/anima-word/studio.js` 200，52,441 bytes；
 - `/anima-prompt-studio/thumb/hatsune_miku` 200，`image/webp`，10,138 bytes。
 - 真实 ComfyUI 页面：节点库搜索 `AnimaPromptStudio` 能列出 11 个节点；插入主
   节点后点“🎨 打开提示词工坊”，面板正常渲染；点第一张卡片（1girl, solo）→
@@ -416,7 +420,7 @@ cd E:\Game\ComfyUI-Installs\Anima模型\ComfyUI
   （侧栏/托盘收窄、LoRA 左右列改为上下堆叠），离线 harness 在 829×870 复测
   通过。
 
-> 测试副本在 `custom_nodes/Comfyui-Anima-Prompt-Studio`；如果改项目目录里的
+> 测试副本在 `custom_nodes/anima-word`；如果改项目目录里的
 > 源码，要重新复制到 `custom_nodes` 才会被测试实例看到。
 
 ---
@@ -447,7 +451,7 @@ cd E:\Game\ComfyUI-Installs\Anima模型\ComfyUI
 ## 12. 目录结构
 
 ```text
-Comfyui-Anima-Prompt-Studio/
+anima-word/
 ├── __init__.py                 # 11 个节点映射 + WEB_DIRECTORY + 路由注册
 ├── nodes_studio.py             # 主节点 / CLIP 编码 / 多框 / 选择器
 ├── nodes_lora.py               # 有序多 LoRA 加载器

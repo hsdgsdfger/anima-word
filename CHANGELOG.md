@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.3 — 2026-11-16
+
+- 对外插件名改为 `anima-word`：安装目录、GitHub 仓库、zip、面板标题、
+  节点显示名同步更新。
+- 为兼容已有工作流，节点类名 `AnimaPromptStudio*`、`AnimaLoraStack` 和
+  路由前缀 `/anima-prompt-studio` 保持不变。
+- 用户数据目录 `user/anima_prompt_studio` 不变，旧收藏、我的 Tag、
+  LoRA 堆栈和 AI provider 配置继续可用。
+
 ## 1.0.2 — 2026-11-16
 
 - 目录页新增「🎲 随机一条 / 随机场景」：场景相关分类自动显示为「随机场景」，

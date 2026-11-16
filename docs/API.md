@@ -215,7 +215,7 @@ HTTP/1.1 501 Not Implemented
 ### `GET /studio/health`
 
 ```json
-{"ok": true, "plugin": "Comfyui-Anima-Prompt-Studio",
+{"ok": true, "plugin": "anima-word",
  "catalog_total": 62585, "catalog_cats": 31, "ai": false, "loras": 21}
 ```
 

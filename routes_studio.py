@@ -38,7 +38,7 @@ def register():
         from aiohttp import web
         from server import PromptServer
     except Exception as exc:  # pragma: no cover
-        print(f"[AnimaPromptStudio] 无法注册新路由: {exc}")
+        print(f"[anima-word] 无法注册新路由: {exc}")
         return False
 
     routes = PromptServer.instance.routes
@@ -301,14 +301,14 @@ def register():
         meta = catalog.meta()
         return web.json_response({
             "ok": True,
-            "plugin": "Comfyui-Anima-Prompt-Studio",
+            "plugin": "anima-word",
             "catalog_total": meta["total"],
             "catalog_cats": len(meta["counts"]),
             "ai": ai_bridge.status()["enabled"],
             "loras": len(list_loras()) if _has_folder_paths() else 0,
         })
 
-    print(f"[AnimaPromptStudio] 新路由已注册: catalog / compose / studio / loras / ai")
+    print(f"[anima-word] 新路由已注册: catalog / compose / studio / loras / ai")
     return True
 
 

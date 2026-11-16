@@ -386,7 +386,7 @@ class AnimaV4RandomPrompt:
                 version=_v3_version())
             _record_meta(st)
         except Exception as exc:                      # pragma: no cover
-            print(f"[AnimaPromptStudio] 元数据注入失败（不影响出图）: {exc}")
+            print(f"[anima-word] 元数据注入失败（不影响出图）: {exc}")
         return (res["text"], R.format_report(res),
                 res["level_label"], res["cn_summary"])
 
@@ -602,7 +602,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 # 与造型台一样只暴露"结构"，不暴露任何词条内容 —— 词条走 pools 路由。
 def contract_payload() -> dict:
     return {
-        "plugin": "Comfyui-Anima-Prompt-Studio",
+        "plugin": "anima-word",
         "levels": [
             {"num": n, "key": k, "label": l, "desc": d}
             for n, k, l, d in N.NSFW_SCALE

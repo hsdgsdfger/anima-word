@@ -51,7 +51,7 @@ def _register_routes():
         from aiohttp import web
         from server import PromptServer
     except Exception as exc:  # pragma: no cover - 非 ComfyUI 环境
-        print(f"[AnimaPromptStudio] 无法注册 V6 HTTP 路由: {exc}")
+        print(f"[anima-word] 无法注册 V6 HTTP 路由: {exc}")
         return
 
     routes = PromptServer.instance.routes
@@ -706,7 +706,7 @@ def _register_routes():
             "levels": list(R.LEVEL_KEYS),
         })
 
-    print(f"[AnimaPromptStudio] v{__version__} V6 路由已注册: "
+    print(f"[anima-word] v{__version__} V6 路由已注册: "
           "pools / contract / scenes / characters / thumb / roll-options / roll / "
           "presets / favorites / outfit-library / outfit-library-override / "
           "outfit-library-scene-override / "
@@ -716,4 +716,4 @@ def _register_routes():
 try:
     _register_routes()
 except Exception as exc:  # pragma: no cover
-    print(f"[AnimaPromptStudio] V6 路由注册失败（不影响节点使用）: {exc}")
+    print(f"[anima-word] V6 路由注册失败（不影响节点使用）: {exc}")

@@ -109,7 +109,7 @@ class AnimaPromptStudio(V6.AnimaV4RandomPrompt):
                 version=V6._v3_version())
             V6._record_meta(pm_state)
         except Exception as exc:  # pragma: no cover
-            print(f"[AnimaPromptStudio] 元数据注入失败（不影响出图）: {exc}")
+            print(f"[anima-word] 元数据注入失败（不影响出图）: {exc}")
 
         return (res["text"], res["report_text"], res["level_label"],
                 res["cn_summary"], res.get("negative", ""),

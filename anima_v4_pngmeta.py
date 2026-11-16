@@ -616,7 +616,7 @@ def inject_metadata(extra_pnginfo, prompt, text, self_ids=frozenset(),
 
     meta = {
         "schema": META_SCHEMA,
-        "plugin": "Comfyui-Anima-Wardrobe-V6",
+        "plugin": "anima-word",
         "version": version,
         "positive": text,                       # 插件产出的正文**原值**
         "positive_full": (wf_st or {}).get("positive", ""),   # 尽力还原的完整正向

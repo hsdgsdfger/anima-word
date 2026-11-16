@@ -736,7 +736,7 @@ function buildPanel(node) {
   const head = document.createElement("div");
   head.className = "av3-head";
   const title = document.createElement("h3");
-  title.textContent = "Anima 提示词随机生成（V6）";
+  title.textContent = "anima-word · 提示词随机生成（V6）";
   head.appendChild(title);
 
   /* 左列分两页：词库权重 / 角色库。角色库 2000+ 条，进面板时**不预加载**，
